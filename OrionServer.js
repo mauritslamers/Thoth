@@ -1,7 +1,7 @@
 var http = require('http'), 
 		url = require('url'),
 		fs = require('fs'),
-		io = require('./../lib/socket.io'),
+		//socketIoServer = require('./socket-io-server/lib/socket.io'),
 		sys = require('sys'),
       send404 = function(res){
 	      res.writeHead(404);
@@ -13,6 +13,7 @@ if(!global.SC) require('./sc/runtime/core');
 
 require('./OrionFileAuth');
 require('./OrionSession');
+require('./OrionSocketListener');
 /*
 The idea behind this Node.js OrionServer is to have a node-js server
 that is reached using a apache proxy to overcome same-origin-policy trouble
@@ -150,8 +151,6 @@ global.OrionServer = SC.Object.extend({
         }
      };
    },
-      
-   server: null,
    
    AUTH: function(request,data,response){
       // when succesfully authenticated, send back a set-cookie header
@@ -233,6 +232,8 @@ global.OrionServer = SC.Object.extend({
       //sys.puts('modelCache: ' + sys.inspect(this._modelCache));
    },
    
+   server: null,
+         
    _startServer: function(){
       this.server = http.createServer(this.createHTTPHandler(this));
       this.server.listen(8080);
@@ -241,26 +242,32 @@ global.OrionServer = SC.Object.extend({
    _attachWebSocket: function(){
       var json = JSON.stringify;
       var me = this;
-      this.socketIO = io.listen(this.server, {
-
+      //this.socketIO = socketIoServer.listen(this.server, {
+      sys.puts("server before socketio init: " + this.server);
+      this.socketIO = OrionSocketListener.create({OrionServer: this }).start(this.server,{
       	onClientConnect: function(client){
-      		client.send(json({ buffer: me.buffer }));
+      	   sys.puts("onClientConnect in OrionServer called");
+      	   //sys.puts(sys.inspect(client));
+      	   sys.puts(sys.inspect(me.socketIOBuffer));
+      		client.send(json({ buffer: me.socketIOBuffer }));
       		client.broadcast(json({ announcement: client.sessionId + ' connected' }));
       	},
 
       	onClientDisconnect: function(client){
+      	   sys.puts("onClientDisconnect in OrionServer called");
       		client.broadcast(json({ announcement: client.sessionId + ' disconnected' }));
       	},
 
       	onClientMessage: function(message, client){
+      	   sys.puts("onClientMessage in OrionServer called");
       		var msg = { message: [client.sessionId, message] };
-      		me.buffer.push(msg);
-      		if (me.buffer.length > 15) {
-      			me.buffer.shift();
+      		me.socketIOBuffer.push(msg);
+      		if (me.socketIOBuffer.length > 15) {
+      			me.socketIOBuffer.shift();
       		}
+      		sys.puts(message);
       		client.broadcast(json(msg));
       	}
-
       });
    },
    
@@ -273,7 +280,7 @@ global.OrionServer = SC.Object.extend({
       // start the server
 
       if(this.allowWebSocket){
-        // this._attachWebSocket();
+         this._attachWebSocket();
       }     
    }
 });

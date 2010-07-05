@@ -29,7 +29,7 @@ There are a few things the server ends needs to be able to do:
 
 */
 if(!global.SC) require('./sc/runtime/core');
-var riak = require('./../riak-js');
+var riak = require('./riak-js/lib');
 
 global.OrionStore = SC.Object.extend({
    

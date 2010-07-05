@@ -22,8 +22,8 @@ global.OrionSession = SC.Object.extend({
      so something like: 
      { 'user': 
          { 
-            sessionKey: '',
-            lastSeen: date in milliseconds
+            sessionKeys: [''],
+            lastSeen: [] // date in milliseconds
          }
      }
      
@@ -52,7 +52,8 @@ global.OrionSession = SC.Object.extend({
       // process sessionInfo
       var sessionInfoObj = querystring.parse(sessionInfo,';','=');
       var sessionName = this.sessionName;
-      sys.puts(sys.inspect(sessionInfoObj));
+      var receivedSessionKey = sessionInfoObj[sessionName];
+      //sys.puts(sys.inspect(sessionInfoObj));
       // returns YES or NO depending on whether the user is still logged in
       var timeout_in_ms = this._timeOutDurationCache;
       if(!timeout_in_ms){ // if there is no cache yet, create it
@@ -64,20 +65,24 @@ global.OrionSession = SC.Object.extend({
          curUserData = this._loggedInUsers[user]; // get the user data
       }
       if(curUserData){ // if it exists, check it
-         var lastSeen = curUserData.lastSeen;
-         var now = new Date().getTime();
-         if((now - lastSeen) > timeout_in_ms){ // diff between lastseen and now too large?
-            // delete user key
-            this._loggedInUsers[user] = undefined;
-            return NO;
+         var sesKeyIndex = curUserData.sessionKeys.indexOf(receivedSessionKey);
+         if(sesKeyIndex> -1){
+            var lastSeen = curUserData.lastSeen[sesKeyIndex];
+            var now = new Date().getTime();
+            if((now - lastSeen) > timeout_in_ms){ // diff between lastseen and now too large?
+               // delete user key
+               this._loggedInUsers[user] = undefined;
+               return NO; // 
+            }
+            else { // active session
+               // first set the new date to now
+               this._loggedInUsers[user].lastSeen = now; // update the actual user data
+               return YES; // use cached data for speed.
+            }
          }
-         else { // active session
-            // first set the new date to now
-            this._loggedInUsers[user].lastSeen = now; // update the actual user data
-            return YES; // use cached data for speed.
-         }
+         else return NO; // receivedSessionKey given does not match any known session keys
       }
-      else return NO;
+      else return NO; // no user data found for received user name
    },
    
    createSession: function(user){
@@ -86,11 +91,17 @@ global.OrionSession = SC.Object.extend({
 
       // first create a session key
       var newSessionKey = this.generateSessionKey();
-      // then set the user information and overwrite any existing stuff
-      this._loggedInUsers[user] = { 
-         sessionKey: newSessionKey,
-         lastSeen: new Date().getTime()
-         };
+      // then set the user information and add to any existing stuff
+      if(!this._loggedInUsers[user]){ // no existing info, create 
+         this._loggedInUsers[user] = { 
+            sessionKeys: [newSessionKey],
+            lastSeen: [new Date().getTime()]
+         };         
+      }
+      else { // 
+         this._loggedInUsers[user].sessionKeys.push(newSessionKey);
+         this._loggedInUsers[user].lastSeen.push(new Date().getTime());
+      }
       var sessionName = this.sessionName;
       var expDate = new Date();
       expDate.setDate(expDate.getDate() + 31);
@@ -112,6 +123,22 @@ global.OrionSession = SC.Object.extend({
          ret.push(keySource[curCharIndex]);
       }
       return ret.join('');
+   },
+   
+   logout: function(user,sessionInfo){
+      // function to remove
+      var sessionInfoObj = querystring.parse(sessionInfo,';','=');
+      var sessionName = this.sessionName;
+      var receivedSessionKey = sessionInfoObj[sessionName];
+      if(this._loggedInUsers[user]){
+         var curSesIndex = this._loggedInUsers[user].sessionKeys.indexOf(receivedSessionKey);
+         if(curSesIndex>-1){
+            //key exists, remove both key and lastSeen
+            this._loggedInUsers[user].sessionKeys.removeAt(curSesIndex);
+            this._loggedInUsers[user].lastSeen.remoteAt(curSesIndex);
+         } // sessionkey doesn't exist, ignore
+      }
+      // if the user doesn't exist anymore in the session info, ignore
    } 
    
 });

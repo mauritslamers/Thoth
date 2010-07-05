@@ -1,0 +1,6 @@
+[submodule "riak-js"]
+	path = riak-js
+	url = ./riak-js
+[submodule "socket-io-server"]
+	path = socket-io-server
+	url = ./socket-io-server
