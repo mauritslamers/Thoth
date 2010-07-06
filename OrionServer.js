@@ -247,10 +247,7 @@ global.OrionServer = SC.Object.extend({
       this.socketIO = OrionSocketListener.create({OrionServer: this }).start(this.server,{
       	onClientConnect: function(client){
       	   sys.puts("onClientConnect in OrionServer called");
-      	   //sys.puts(sys.inspect(client));
-      	   sys.puts(sys.inspect(me.socketIOBuffer));
-      		client.send(json({ buffer: me.socketIOBuffer }));
-      		client.broadcast(json({ announcement: client.sessionId + ' connected' }));
+      	   
       	},
 
       	onClientDisconnect: function(client){

@@ -3,6 +3,7 @@ Authentication plugin for using fixture like authentication
 
 The fixture file
 
+
 */
 if(!global.SC) require('./sc/runtime/core');
 
@@ -16,6 +17,7 @@ global.OrionFileAuth = OrionAuth.extend({
    
    _authData: null,
    
+   // checkAuth has to return immediately, it should not be done using a callback
    checkAuth: function(user,passwd,passwdIsMD5){
       if(!this._authData){
          var fn = ['./',this.fileName].join('');

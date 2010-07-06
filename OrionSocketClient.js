@@ -12,7 +12,12 @@ global.OrionSocketClient = SC.Object.extend({
    
    options: {},
    
-   connected: false, // flag to know whether we have a connection
+   isConnected: false, // flag to know whether we have a connection
+   
+   isAuthenticated: false, // flag to know whether this connection is authenticated and consequently allowed to receive data
+   
+   sessionKey: "",  // property to be able to store the session info, to enable 
+                     //the same user to do both websocket as other types of requests
 	
 	setOption: function(key, value){
 	   this.options[key] = value;
@@ -45,19 +50,20 @@ global.OrionSocketClient = SC.Object.extend({
 		this.listener = listener;
 		this.setOptions(options);
 		this.connections = 0;
-		this.connected = false;
+		this.isConnected = false;
 		this.upgradeHead = head;
 		this._onConnect(req, res);
 	},
 
 	send: function(message){
 	   sys.puts("Send called on OrionSocketClient with message " + sys.inspect(message));
-		if (!this.connected || !(this.connection.readyState === 'open' ||
+		if (!this.isConnected || !(this.connection.readyState === 'open' ||
 				this.connection.readyState === 'writeOnly')) {
 			return this._queue(message);
 		}
 		
-		this._write(JSON.stringify({messages: [message]}));
+		//this._write(JSON.stringify({messages: [message]}));
+		this._write(JSON.stringify([message]));
 		return this;
 	},
 
@@ -70,13 +76,19 @@ global.OrionSocketClient = SC.Object.extend({
 	},
 
 	_onMessage: function(data){
-	   sys.puts('_onMessage called with data: ' + sys.inspect(data));
-	  try {
-	    var messages = JSON.parse(data);
-	  } catch(e){
-	    return this.listener.options.log('Bad message received from client ' + this.sessionId + " with data: " + data);
-	  }
-		for (var i = 0, l = messages.length; i < l; i++){
+	   sys.puts('OrionSocketClient._onMessage called with data: ' + sys.inspect(data));
+	   try {
+	      var messages = JSON.parse(data);
+	   } catch(e){
+	      return this.listener.options.log('Bad message received from client ' + this.sessionId + " with data: " + data);
+	   }
+      // messages can be either an object or an array, so in case of an array, 
+      // call the callback on the listener with one object/message at a time.
+      // the listener callback will check for authentication requests and if there is none
+      // call the OrionServer callback 
+      messages = (messages instanceof Object)? [messages]: messages; // if messages isn't an array yet, make it one
+      // call the listeners _onClientMessage with every object in messages
+		for (var i=0,l=messages.length;i<l;i++){
 			this.listener._onClientMessage(messages[i], this);
 		}		
 	},
@@ -95,18 +107,23 @@ global.OrionSocketClient = SC.Object.extend({
 		var payload = [];
 
 		this.connections++;
-		this.connected = true;
+		this.isConnected = true;
 
-		if (!this.handshaked){
+      this.handshaked = true;
+		/*
+		   if (!this.handshaked){
 			this._generateSessionId();
 			payload.push(JSON.stringify({
 				sessionid: this.sessionId
 			}));
 			this.handshaked = true;
-		}
+		} */
 
-		payload = payload.concat(this._writeQueue || []);
-		this._writeQueue = [];
+		//payload = payload.concat(this._writeQueue || []);
+		//this._writeQueue = [];
+      
+      // the writeQueue will be implemented inside the session stuff
+      
 
 		if (payload.length) {
 			this._write(JSON.stringify({messages: payload}));
@@ -121,7 +138,7 @@ global.OrionSocketClient = SC.Object.extend({
 		if (this._heartbeatInterval) {
 			clearInterval(this._heartbeatInterval);
 		}
-		this.connected = false;
+		this.isConnected = false;
 		this._disconnectTimeout = setTimeout(function(){
 			self._onDisconnect();
 		}, this.options.closeTimeout);

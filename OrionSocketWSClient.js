@@ -67,7 +67,11 @@ global.OrionSocketWSClient = OrionSocketClient.extend({
 
 		if (this._proveReception(headers)){
 		   // now we know that the connection is proper...
-		   // the function below sets the session key
+		   // the function below sets the session key and sends it to the client...
+		   // this is not the way I want to have things work.
+		   // a client needs to be authenticated before anything can be sent
+		   
+		   // the payload function sets a few useful settings
 			this._payload();
 		}
 
