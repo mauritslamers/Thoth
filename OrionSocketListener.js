@@ -38,15 +38,16 @@ var transports = {};
  let's also add a data messages for sending data from the server to the client and vice versa
  
  DATA requests:
- { refresh: { bucket: '', key: ''}}
  { fetch: { bucket: '', conditions: '' }} 
- { create: { bucket: '', record: {} }}
- { update: { bucket: '', key: '', record: {} }}
- { delete: { bucket: '', key: ''}}
+ { refreshRecord: { bucket: '', key: ''}}
+ { createRecord: { bucket: '', record: {} }}
+ { updateRecord: { bucket: '', key: '', record: {} }}
+ { deleteRecord: { bucket: '', key: ''}}
 
   These requests are two way, in the sense that the server can send these requests to the client,
   and vice versa. It makes sense to have a type field in the record to make sure the client
-  can find back the recordType
+  can find back the recordType...
+  
 
 */
 
@@ -245,6 +246,7 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
    		// remove user and sessionKey information on the client object
    		client.user = undefined;
    		client.sessionKey = undefined;
+   		client.isAuthenticated = NO;
    		// move the client from the authenticatedClients to the unAuthenticatedClients
    		this.authenticatedClients.removeObject(client);
    		this.unAuthenticatedClients.push(client);
@@ -267,11 +269,10 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
          return; // end func here
 	   }
 	   if(data.logout){
-	      this._logoutRequest(data,client);
-	   }
-	   else {  // if not auth, forward the request
-   		this.emit('clientMessage', data, client);	      
-	   }
+	      this._logoutRequest(data,client); 
+	      return;
+      }
+   	if(client.isAuthenticated) this.emit('clientMessage', data, client);	      	      
 	},
 	
 	_onClientDisconnect: function(client){
@@ -284,11 +285,11 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 	
 	// new connections (no session id)
 	_onConnection: function(transport, req, res, httpUpgrade, head){
-	   sys.puts("OrionSocketListener: _onConnection");
-	   sys.puts("index of transport: " + this.options.transports.indexOf(transport));
-	   sys.puts("httpUpgrade: " + httpUpgrade);
-	   sys.puts("transports[transport].httpUgrade: " + transports[transport].httpUpgrade);
-	   sys.puts("transports[transport].prototype.httpUgrade: " + transports[transport].prototype.httpUpgrade);
+	   //sys.puts("OrionSocketListener: _onConnection");
+	   //sys.puts("index of transport: " + this.options.transports.indexOf(transport));
+	   //sys.puts("httpUpgrade: " + httpUpgrade);
+	   //sys.puts("transports[transport].httpUgrade: " + transports[transport].httpUpgrade);
+	   //sys.puts("transports[transport].prototype.httpUgrade: " + transports[transport].prototype.httpUpgrade);
 		if (this.options.transports.indexOf(transport) === -1 || (httpUpgrade && !transports[transport].prototype.httpUpgrade)){
 			httpUpgrade ? res.destroy() : req.connection.destroy();
 			sys.puts('Illegal transport "'+ transport +'"');

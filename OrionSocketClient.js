@@ -56,7 +56,7 @@ global.OrionSocketClient = SC.Object.extend({
 	},
 
 	send: function(message){
-	   sys.puts("Send called on OrionSocketClient with message " + sys.inspect(message));
+	   //sys.puts("Send called on OrionSocketClient with message " + sys.inspect(message));
 		if (!this.isConnected || !(this.connection.readyState === 'open' ||
 				this.connection.readyState === 'writeOnly')) {
 			return this._queue(message);
@@ -76,7 +76,7 @@ global.OrionSocketClient = SC.Object.extend({
 	},
 
 	_onMessage: function(data){
-	   sys.puts('OrionSocketClient._onMessage called with data: ' + sys.inspect(data));
+	   //sys.puts('OrionSocketClient._onMessage called with data: ' + sys.inspect(data));
 	   try {
 	      var messages = JSON.parse(data);
 	   } catch(e){

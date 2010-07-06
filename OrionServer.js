@@ -247,23 +247,28 @@ global.OrionServer = SC.Object.extend({
       this.socketIO = OrionSocketListener.create({OrionServer: this }).start(this.server,{
       	onClientConnect: function(client){
       	   sys.puts("onClientConnect in OrionServer called");
-      	   
       	},
 
       	onClientDisconnect: function(client){
       	   sys.puts("onClientDisconnect in OrionServer called");
-      		client.broadcast(json({ announcement: client.sessionId + ' disconnected' }));
       	},
+
+         /*
+         DATA requests:
+         { refreshRecord: { bucket: '', key: ''}}
+         { fetch: { bucket: '', conditions: '' }} 
+         { createRecord: { bucket: '', record: {} }}
+         { updateRecord: { bucket: '', key: '', record: {} }}
+         { deleteRecord: { bucket: '', key: ''}}
+         */
 
       	onClientMessage: function(message, client){
       	   sys.puts("onClientMessage in OrionServer called");
-      		var msg = { message: [client.sessionId, message] };
-      		me.socketIOBuffer.push(msg);
-      		if (me.socketIOBuffer.length > 15) {
-      			me.socketIOBuffer.shift();
-      		}
-      		sys.puts(message);
-      		client.broadcast(json(msg));
+      	   if(message.fetch) sys.puts("OrionServer fetch called");
+      	   if(message.refreshRecord) sys.puts("OrionServer refresh called");
+      	   if(message.createRecord) sys.puts("OrionServer create called");
+      	   if(message.updateRecord) sys.puts("OrionServer update called");
+      	   if(message.deleteRecord) sys.puts("OrionServer delete called");
       	}
       });
    },
