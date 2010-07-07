@@ -33,7 +33,7 @@ global.OrionServer = SC.Object.extend({
    
    allowWebSocket: true,
    
-   forceAuth: true,
+   forceAuth: true, // the socket clients haven't been written in such a way atm that changing this to false does anything...
    
    forceMD5Auth: false,
    
@@ -239,11 +239,30 @@ global.OrionServer = SC.Object.extend({
       this.server.listen(8080);
    },
    
+   /*
+      there are a few there common functions every activity should call in case the websocket is enabled...
+      this has to do with the nature of a websocket connection...
+      
+      - the server should keep a memory of what data actually has been written to the different clients
+        to be able to update clients with older versions of those records...
+        something like an array of { bucket: '', id: '', timestamp: ''}
+        Of course it could be interesting to send all updates to all clients, but that would result
+        in loads of traffic, especially of all kinds of data some clients don't even should have access to...
+        By keeping the data just to already requested records, no-one gets information he or she doesn't deserve
+      
+      - in addition to the records the user requested the server should check whether new records fit fetch 
+        request conditions of the past, preventing users to get records they don't need to get and to
+        be able to send records they should get (SC.Query??)
+        
+      - in addition the server should check on permissions, that is whether the user actually has read permission 
+        on the record that 
+   */
+   
    _attachWebSocket: function(){
       var json = JSON.stringify;
       var me = this;
       //this.socketIO = socketIoServer.listen(this.server, {
-      sys.puts("server before socketio init: " + this.server);
+      //sys.puts("server before socketio init: " + this.server);
       this.socketIO = OrionSocketListener.create({OrionServer: this }).start(this.server,{
       	onClientConnect: function(client){
       	   sys.puts("onClientConnect in OrionServer called");
@@ -256,20 +275,46 @@ global.OrionServer = SC.Object.extend({
          /*
          DATA requests:
          { refreshRecord: { bucket: '', key: ''}}
-         { fetch: { bucket: '', conditions: '' }} 
-         { createRecord: { bucket: '', record: {} }}
-         { updateRecord: { bucket: '', key: '', record: {} }}
-         { deleteRecord: { bucket: '', key: ''}}
+         { fetch: { bucket: '', conditions: '', returnData: {} }} 
+         { createRecord: { bucket: '', record: {}, returnData: {} }}
+         { updateRecord: { bucket: '', key: '', record: {}, returnData: {} }}
+         { deleteRecord: { bucket: '', key: '', returnData: {} }}
+         
+         // most properties are self explanatory, but returnData needs some explanation on its own.
+         // return data is an object that can be delivered along side the request and which is
+         // returned by the server in the answer to that request. This helps the client side identifying 
+         // what request was answered exactly.
+         
+         // returned by the server as answer to a client request
+         { fetchResult: { bucket: '', records: [], returnData: {} }}
+         { createRecordResult: {}, returnData: {} }
+         { updateRecordResult: {}, returnData: {} }
+         { deleteRecordResult: {}, returnData: {} }
+         { refreshRecordResult: {}, returnData: {} }
          */
 
       	onClientMessage: function(message, client){
       	   sys.puts("onClientMessage in OrionServer called");
-      	   if(message.fetch) sys.puts("OrionServer fetch called");
+      	   if(message.fetch){
+      	      //sys.puts("OrionServer fetch called"); 
+      	      var fetchinfo = message.fetch;
+      	      //this.store.fetch(resource,"student/1",this.createFetchCallback(request,response)); 
+      	      me.store.fetch(fetchinfo.bucket, function(data){ 
+      	         client.send({ 
+      	            fetchResult: { 
+      	               bucket: fetchinfo.bucket, 
+      	               records: data, 
+      	               returnData: fetchinfo.returnData
+      	            }
+      	         });
+      	      });
+      	   } 
       	   if(message.refreshRecord) sys.puts("OrionServer refresh called");
       	   if(message.createRecord) sys.puts("OrionServer create called");
       	   if(message.updateRecord) sys.puts("OrionServer update called");
       	   if(message.deleteRecord) sys.puts("OrionServer delete called");
       	}
+      	
       });
    },
    

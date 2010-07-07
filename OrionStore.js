@@ -67,9 +67,7 @@ global.OrionStore = SC.Object.extend({
       }
    },
    
-   fetch: function(resource,clientid,callback){
-      // we need a client id to identify the actions for Riak, we would like a riak bucket/key combination
-      
+   fetch: function(resource,callback){      
       // function to get all records for a certain model.
       // resource should be the name of the resource to fetch, the callback is called with an array of results, 
       // or an empty array if the resource should exist but cannot be found 
@@ -78,12 +76,12 @@ global.OrionStore = SC.Object.extend({
       // this function expects the callback to be a generated function and have the servers request and response objects
       // included in it as a closure (is it called that way?), as well as some extra data as session info
       
-      if(resource && clientid && callback){
+      if(resource && callback){
          var ret = this.db.map({source: 'function(value){ return [value];}'}).run(resource); // this returns a function
          ret(this._createRiakFetchOnSuccess(callback), this._createRiakFetchOnError(callback));
+         return YES;
       }
       else return NO;
-
    },
    
    
@@ -153,16 +151,18 @@ global.OrionStore = SC.Object.extend({
    },
    
    createRecord: function(resource, data){
-      
+      // we need a client id to identify the actions for Riak, we would like a riak bucket/key combination 
+      // this information could be retrieved from the user session, it may even be the session key...
+      // or even better a username + sessionkey to keep error messages readable
    },
    
    updateRecord: function(resource,data){
-      
+      // we need a client id to identify the actions for Riak, we would like a riak bucket/key combination
       
    },
    
    deleteRecord: function(resource,key){
-      
+      // we need a client id to identify the actions for Riak, we would like a riak bucket/key combination   
    }
    
    

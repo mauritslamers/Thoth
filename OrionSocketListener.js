@@ -35,18 +35,26 @@ var transports = {};
  LOGOUT:
  { logout: { user: '', sessionKey: '' }}
 
- let's also add a data messages for sending data from the server to the client and vice versa
- 
- DATA requests:
- { fetch: { bucket: '', conditions: '' }} 
- { refreshRecord: { bucket: '', key: ''}}
- { createRecord: { bucket: '', record: {} }}
- { updateRecord: { bucket: '', key: '', record: {} }}
- { deleteRecord: { bucket: '', key: ''}}
+/*
+DATA requests:
+{ refreshRecord: { bucket: '', key: ''}}
+{ fetch: { bucket: '', conditions: '', returnData: {} }} 
+{ createRecord: { bucket: '', record: {}, returnData: {} }}
+{ updateRecord: { bucket: '', key: '', record: {}, returnData: {} }}
+{ deleteRecord: { bucket: '', key: '', returnData: {} }}
 
-  These requests are two way, in the sense that the server can send these requests to the client,
-  and vice versa. It makes sense to have a type field in the record to make sure the client
-  can find back the recordType...
+// most properties are self explanatory, but returnData needs some explanation on its own.
+// return data is an object that can be delivered along side the request and which is
+// returned by the server in the answer to that request. This helps the client side identifying 
+// what request was answered exactly.
+
+// returned by the server as answer to a client request
+{ fetchResult: { bucket: '', records: [], returnData: {} }}
+{ createRecordResult: {}, returnData: {} }
+{ updateRecordResult: {}, returnData: {} }
+{ deleteRecordResult: {}, returnData: {} }
+{ refreshRecordResult: {}, returnData: {} }
+*/
   
 
 */
@@ -77,7 +85,6 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 	},
   
   start: function(server, options){
-      sys.puts("Server: " + server);
 		var self = this;
 		process.EventEmitter.call(this);
 		this.server = server;
