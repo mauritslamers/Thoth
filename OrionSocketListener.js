@@ -35,7 +35,7 @@ var transports = {};
  LOGOUT:
  { logout: { user: '', sessionKey: '' }}
 
-/*
+
 DATA requests:
 { refreshRecord: { bucket: '', key: ''}}
 { fetch: { bucket: '', conditions: '', returnData: {} }} 
@@ -54,7 +54,7 @@ DATA requests:
 { updateRecordResult: {}, returnData: {} }
 { deleteRecordResult: {}, returnData: {} }
 { refreshRecordResult: {}, returnData: {} }
-*/
+
   
 
 */

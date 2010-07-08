@@ -26,7 +26,8 @@ global.OrionSession = SC.Object.extend({
      { 'user': 
          { 
             sessionKeys: [''],
-            lastSeen: [] // date in milliseconds, 
+            lastSeen: [], // date in milliseconds, 
+            serverCache: OrionServerCache.create()
          }
      }
      

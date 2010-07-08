@@ -14,6 +14,7 @@ if(!global.SC) require('./sc/runtime/core');
 require('./OrionFileAuth');
 require('./OrionSession');
 require('./OrionSocketListener');
+require('./sc/query');
 /*
 The idea behind this Node.js OrionServer is to have a node-js server
 that is reached using a apache proxy to overcome same-origin-policy trouble
@@ -253,9 +254,21 @@ global.OrionServer = SC.Object.extend({
       - in addition to the records the user requested the server should check whether new records fit fetch 
         request conditions of the past, preventing users to get records they don't need to get and to
         be able to send records they should get (SC.Query??)
+        YES: SCQuery!!! 
+        using it is actually very, very easy. 
+        var query = SC.Query.create({
+            conditions: "userid = {user}",
+            parameters: { user: 1}
+        });
+        query.parse();
+        
+        now we can do record matching by calling query.contains(record);
+        it returns YES on match, and NO when there is no match
+        
         
       - in addition the server should check on permissions, that is whether the user actually has read permission 
-        on the record that 
+        on the record that has been changed/deleted/created
+        
    */
    
    _attachWebSocket: function(){
@@ -274,11 +287,14 @@ global.OrionServer = SC.Object.extend({
 
          /*
          DATA requests:
-         { refreshRecord: { bucket: '', key: ''}}
-         { fetch: { bucket: '', conditions: '', returnData: {} }} 
+         { refreshRecord: { bucket: '', key: '', returnData: {} }} 
+         { fetch: { bucket: '', conditions: '', parameters: {}, returnData: {} }}
          { createRecord: { bucket: '', record: {}, returnData: {} }}
          { updateRecord: { bucket: '', key: '', record: {}, returnData: {} }}
          { deleteRecord: { bucket: '', key: '', returnData: {} }}
+         
+         // the fetch call has the option of passing the conditions and parameters of a query
+         // records will be filtered based on it
          
          // most properties are self explanatory, but returnData needs some explanation on its own.
          // return data is an object that can be delivered along side the request and which is
