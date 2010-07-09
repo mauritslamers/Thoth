@@ -177,6 +177,18 @@ global.OrionSession = SC.Object.extend({
       if(this._loggedInUsers && this._loggedInUsers[user] && this._loggedInUsers[user][sessionKey]){
          return this._loggedInUsers[user][sessionKey].serverCache.shouldReceive(record);
       }     
+   },
+   
+   queueRequest: function(user,sessionKey,request){
+      if(this._loggedInUsers && this._loggedInUsers[user] && this._loggedInUsers[user][sessionKey]){
+         return this._loggedInUsers[user][sessionKey].serverCache.queueRequest(request);
+      }
+   },
+   
+   retrieveQueue: function(user,sessionKey){
+      if(this._loggedInUsers && this._loggedInUsers[user] && this._loggedInUsers[user][sessionKey]){
+         return this._loggedInUsers[user][sessionKey].serverCache.retrieveQueue();
+      }
    }
    
 });
