@@ -113,45 +113,55 @@ global.OrionStore = SC.Object.extend({
       // the callback function should call the callback provided with the raw data fetched from riak
       // let's process the data in such a way that it already resembles an SC record object
       // the layout of the data in recs is as described above
+      
       return function(recs, metadata){
          var ret = [];
          //sys.puts("fetch recs: " + sys.inspect(recs));
-         //sys.puts("fetch metadata: " + sys.inspect(metadata));
          if(recs && recs instanceof Array){
-            var numrecords = recs.length;
-            for(var i=0;i<numrecords;i++){
-               var curobj = recs[i];
-               var newobj = { type: curobj.bucket, id: curobj.key, key: curobj.key , vclock: curobj.vclock};
-               var curvals = curobj.values;
-               if(curvals){
-                  // assume for the moment curvals is an array with length 1
-                  var curvalobj = curvals[0];
-                  var curval_meta = curvalobj.metadata;
-                  // do the meta data conversion manually                  
-                  newobj.links = curval_meta["Links"];
-                  newobj.etag = curval_meta['X-Riak-VTag'];
-                  newobj.lastModified = curval_meta["X-Riak-Last-Modified"];
-                  newobj.meta = curval_meta["X-Riak-Meta"];
-                  newobj.timestamp = metadata.headers["date"];
-                  newobj.contentType = metadata.headers["content-type"];
-                  if(newobj.contentType == "application/json"){
+            //sys.puts("RIAK onfetch success: fetch recs: " + JSON.stringify(recs));
+            //sys.puts("fetch metadata: " + sys.inspect(metadata));
+            if(metadata.type == 'application/json'){
+               var numrecords = recs.length;
+               sys.puts("fetch return num elements: " + numrecords);
+               for(var i=0;i<numrecords;i++){
+                  var curobj = recs[i];
+                  var newobj = { type: curobj.bucket, id: curobj.key, key: curobj.key , vclock: curobj.vclock};
+                  var curvals = curobj.values;
+                  if(curvals){
+                     // assume for the moment curvals is an array with length 1
+                     var curvalobj = curvals[0];
+                     var curval_meta = curvalobj.metadata;
+                     // do the meta data conversion manually                  
+                     newobj.links = curval_meta["Links"];
+                     newobj.etag = curval_meta['X-Riak-VTag'];
+                     newobj.lastModified = curval_meta["X-Riak-Last-Modified"];
+                     newobj.meta = curval_meta["X-Riak-Meta"];
+                     newobj.timestamp = metadata.headers["date"];
+                     newobj.contentType = metadata.headers["content-type"];
                      var curval_data = JSON.parse(curvalobj.data); 
-                     // copy data
-                     for(var key2 in curval_data){
-                        newobj[key2] = curval_data[key2];
-                     }                     
+                     if(curval_data){
+                        // copy data if it is proper json
+                        for(var key2 in curval_data){
+                           newobj[key2] = curval_data[key2];
+                        }                                             
+                     }
+                     else {
+                        // just push it as text data
+                        newobj.data = curvalobj.data;
+                     }
                   }
-                  else {
-                     // whether this actually is useful in this way... guess not, 
-                     // but at least it prevents calling json.parse on binary data... 
-                     newobj.binary = curvalobj.data; 
-                  }
-               }
-               ret.push(newobj);
+                  //sys.puts("About to add to ret: " + sys.inspect(newobj));
+                  ret.push(newobj);
+               } // end for
             }
-         }
+            else {
+               // we need to think of something to deal with binary data
+               //newobj.binary = curvalobj.data;
+            }
+         } 
+         //sys.puts("About to call fetchResult callback with: " + sys.inspect(ret));
          callback(ret);
-      };
+      }; // end return function
    },
    
    _createRiakFetchOnError: function(callback){

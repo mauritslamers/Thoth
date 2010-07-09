@@ -393,14 +393,14 @@ global.OrionServer = SC.Object.extend({
       // the server cache is to update the server cache with the records the current
       // client / sessionKey combination requested.
                
-      //sys.puts("OrionServer fetch called");
+      sys.puts("OrionServer fetch called");
       var fetchinfo = message.fetch; 
       var me = this;
       var clientId = [client.user,client.sessionKey].join("_");
       me.store.fetch(fetchinfo.bucket,clientId,function(data){ 
          var records = (data instanceof Array)? data: [data]; // better safe than sorry
          // now push the records to the clients session
-         me.sessionModule.storeRecords(client.user,client.sessionKey,records);
+         //me.sessionModule.storeRecords(client.user,client.sessionKey,records);
          callback({ 
             fetchResult: { 
                bucket: fetchinfo.bucket, 

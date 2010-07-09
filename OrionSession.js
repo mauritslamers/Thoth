@@ -6,6 +6,7 @@ if(!global.SC) require('./sc/runtime/core');
 
 var querystring = require('querystring'); // for session key parsing
 var sys = require('sys');
+require('./OrionUserCache');
 
 global.OrionSession = SC.Object.extend({
    
@@ -27,7 +28,7 @@ global.OrionSession = SC.Object.extend({
          { 
             sessionKeys: [''],
             lastSeen: [], // date in milliseconds, 
-            sessionData: [OrionServerCache.create()]
+            sessionData: [OrionUserCache.create()]
          }
      }
      
@@ -103,13 +104,13 @@ global.OrionSession = SC.Object.extend({
          this._loggedInUsers[user] = { 
             sessionKeys: [newSessionKey],
             lastSeen: [new Date().getTime()],
-            sessionData: [OrionServerCache.create()]
+            sessionData: [OrionUserCache.create()]
          };         
       }
       else { // 
          this._loggedInUsers[user].sessionKeys.push(newSessionKey);
          this._loggedInUsers[user].lastSeen.push(new Date().getTime());
-         this._loggedInUsers[user].sessionData.push(OrionServerCache.create());
+         this._loggedInUsers[user].sessionData.push(OrionUserCache.create());
       }
       var sessionName = this.sessionName;
       var expDate = new Date();

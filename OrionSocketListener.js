@@ -321,16 +321,15 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 	
 	updateAuthenticatedClient: function(user,sessionKey,request){
 	   // function to update a connected client with the given request
-	   // if connected, update the sessionInfo
-	   // if no connected client exists, queue it on the session object
+	   // while it seems a nice idea to do the session info update here, 
+	   // it is better to do this in the OrionServer part as we have the
+	   // data on what kind of request has been made...
 	   var client = this.getClientBySessionKey(sessionKey);
 	   if(client && client.isConnected && client.isAuthenticated && client.user == user){ // better be safe than sorry
 	      client.send(request);
-	      this.OrionServer.sessionModule.
+	      return YES;
 	   }
-	   else {
-	      
-	   }
+	   return NO;
 	}
 	
   
