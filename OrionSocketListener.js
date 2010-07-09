@@ -283,7 +283,7 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 	},
 	
 	_onClientDisconnect: function(client){
-	   // if a client disconnects, remove the object from either authenticated or unAuthenticatedClients
+	   // if a client disconnects, remove the object from either authenticatedClients or unAuthenticatedClients
 	   this.authenticatedClients.removeObject(client);
 	   this.unAuthenticatedClients.removeObject(client);
 	   //this.options.log('Client '+ client.sessionId +' disconnected');		
@@ -305,6 +305,18 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 		this.options.log('Initializing client with transport "'+ transport +'"');
 		var client = transports[transport].create({ OrionServer: this.OrionServer });
 		client.start(this, req, res, this.options.transportOptions[transport], head);
+	},
+	
+	getClientBySessionKey: function(sessionKey){
+	   // return the client inside the authenticatedClients having the given sessionKey
+	   var authClients = this.authenticatedClients;
+	   var numclients = authClients.length;
+	   var curClient;
+	   for(var i=0;i<numclients;i++){
+	      curClient = authClients[i];
+	      if(curClient.sessionKey == sessionKey) return curClient;
+	   }
+	   return NO; // return no if no client exists
 	}
   
 });

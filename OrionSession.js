@@ -153,12 +153,30 @@ global.OrionSession = SC.Object.extend({
       // if the user doesn't exist anymore in the session info, ignore
    },
    
-   getSessionProperty: function(user,sessionInfo,sessionKeyOnly,property){
-      // function to get access to the session object to read data from
+   // functions to pass on requests to the sessions user cache
+   
+   storeQuery: function(user,sessionKey,query){
+      if(this._loggedInUsers && this._loggedInUsers[user] && this._loggedInUsers[user][sessionKey]){
+         return this._loggedInUsers[user][sessionKey].serverCache.storeQuery(query);
+      }
    },
    
-   setSessionProperty: function(user,sessionInfo,sessionKeyOnly,property,value){
-      // function to write back information to the session object of a specific user
+   storeBucketKey: function(user,sessionKey,bucket,key,timestamp){
+      if(this._loggedInUsers && this._loggedInUsers[user] && this._loggedInUsers[user][sessionKey]){
+         return this._loggedInUsers[user][sessionKey].serverCache.storeBucketKey(bucket,key,timestamp);
+      }
+   },
+   
+   storeRecords: function(user,sessionKey,records){
+      if(this._loggedInUsers && this._loggedInUsers[user] && this._loggedInUsers[user][sessionKey]){
+         return this._loggedInUsers[user][sessionKey].serverCache.storeRecords(records);
+      }      
+   },
+   
+   shouldReceive: function(user,sessionKey,record){
+      if(this._loggedInUsers && this._loggedInUsers[user] && this._loggedInUsers[user][sessionKey]){
+         return this._loggedInUsers[user][sessionKey].serverCache.shouldReceive(record);
+      }     
    }
    
 });

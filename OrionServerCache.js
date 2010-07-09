@@ -9,10 +9,11 @@ To prevent having to copy the entire database, we only keep a subset of all info
  - a set of bucket/key combinations of records actually requested by the user
  - a copy of the fetch requests and the corresponding query information, to check whether newly 
    created records match a previous request made by the client using a query
+ - a queue of requests/messages to update the client as soon as a severed connection reconnects
 
 The server cache may be a very useful place to do the permission checking...
 
-The server cache is a per user cache.
+The server cache is a per user cache, so should be part of the session data
 
 This server cache could be implemented using the riak back end, but for the moment let's keep it to the
 program itself
@@ -20,7 +21,7 @@ program itself
 
 */
 
-global.OrionServerCache = SC.Object.extend({
+global.OrionUserCache = SC.Object.extend({
    
    // an array [bucketname][keyname] = timestamp;
    
@@ -28,6 +29,11 @@ global.OrionServerCache = SC.Object.extend({
    
    // an array: [bucketname] = query
    _fetchQueryStore: [],
+   
+   // an array [bucketname][keyname] = record
+   _requestQueue: [], // to store request information in case the connection has been severed
+   // the idea here is that as soon as a connection closes and no logout has taken place
+   // 
    
    indexOfQuery: function(conditions,parameters){
       var queries = this._fetchQueryStore;
@@ -56,6 +62,7 @@ global.OrionServerCache = SC.Object.extend({
    storeBucketKey: function(bucket,key,timestamp){
       //function to store a bucket/key/timestamp combination
       // if the bucket/key combination already exists, update the timestamp
+      // the time stamp seems to be unnessary, but let's keep it for the moment
       var storedBucket = this._bucketKeyStore[bucket];
       if(storedBucket){
          var storedTimeStamp = storedBucket[key];
@@ -72,6 +79,16 @@ global.OrionServerCache = SC.Object.extend({
          this._bucketKeyStore[bucket] = [];
          this._bucketKeyStore[bucket][key] = timestamp;
       }
+   },
+   
+   storeRecords: function(records){
+      // a short cut function to store the bucket-key combinations from an array of records
+      var curbucket,curkey,me=this;
+      records.forEach(function(v){
+         curbucket = record.bucket;
+         curkey = record.id;
+         me.storeBucketKey(curbucket,curkey, new Date().getTime());
+      });
    },
    
    shouldReceive: function(record){
@@ -101,6 +118,21 @@ global.OrionServerCache = SC.Object.extend({
          }
       }
       return NO;
+   },
+   
+   queueRequest: function(request){
+      // function to queue a request
+      this._requestQueue.push(request);
+   },
+   
+   retrieveQueue: function(){
+      // function to return all queued records for this user in such a way that 
+      // it can be sent of right away, empty the queue when the function returns
+      var queue = this._requestQueue;
+      this._requestQueue = [];
+      return queue;
    }
+   
+   
    
 });

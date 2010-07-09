@@ -278,53 +278,18 @@ global.OrionServer = SC.Object.extend({
       //sys.puts("server before socketio init: " + this.server);
       this.socketIO = OrionSocketListener.create({OrionServer: this }).start(this.server,{
       	onClientConnect: function(client){
-      	   sys.puts("onClientConnect in OrionServer called");
+      	   //sys.puts("onClientConnect in OrionServer called");
+      	   // no particular action needed here...
       	},
 
       	onClientDisconnect: function(client){
-      	   sys.puts("onClientDisconnect in OrionServer called");
+      	   //sys.puts("onClientDisconnect in OrionServer called");
+      	   // client disconnects, probably also no action needed here...
       	},
-
-         /*
-         DATA requests:
-         { refreshRecord: { bucket: '', key: '', returnData: {} }} 
-         { fetch: { bucket: '', conditions: '', parameters: {}, returnData: {} }}
-         { createRecord: { bucket: '', record: {}, returnData: {} }}
-         { updateRecord: { bucket: '', key: '', record: {}, returnData: {} }}
-         { deleteRecord: { bucket: '', key: '', returnData: {} }}
-         
-         // the fetch call has the option of passing the conditions and parameters of a query
-         // records will be filtered based on it
-         
-         // most properties are self explanatory, but returnData needs some explanation on its own.
-         // return data is an object that can be delivered along side the request and which is
-         // returned by the server in the answer to that request. This helps the client side identifying 
-         // what request was answered exactly.
-         
-         // returned by the server as answer to a client request
-         { fetchResult: { bucket: '', records: [], returnData: {} }}
-         { createRecordResult: {}, returnData: {} }
-         { updateRecordResult: {}, returnData: {} }
-         { deleteRecordResult: {}, returnData: {} }
-         { refreshRecordResult: {}, returnData: {} }
-         */
 
       	onClientMessage: function(message, client){
       	   sys.puts("onClientMessage in OrionServer called");
-      	   if(message.fetch){
-      	      //sys.puts("OrionServer fetch called"); 
-      	      var fetchinfo = message.fetch;
-      	      //this.store.fetch(resource,"student/1",this.createFetchCallback(request,response)); 
-      	      me.store.fetch(fetchinfo.bucket, function(data){ 
-      	         client.send({ 
-      	            fetchResult: { 
-      	               bucket: fetchinfo.bucket, 
-      	               records: data, 
-      	               returnData: fetchinfo.returnData
-      	            }
-      	         });
-      	      });
-      	   } 
+      	   if(message.fetch) me.onFetch.call(me,message,client,function(data){ client.send(data)});
       	   if(message.refreshRecord) sys.puts("OrionServer refresh called");
       	   if(message.createRecord) sys.puts("OrionServer create called");
       	   if(message.updateRecord) sys.puts("OrionServer update called");
@@ -345,6 +310,117 @@ global.OrionServer = SC.Object.extend({
       if(this.allowWebSocket){
          this._attachWebSocket();
       }     
+   },
+
+   /*
+   DATA requests:
+   { refreshRecord: { bucket: '', key: '', returnData: {} }} 
+   { fetch: { bucket: '', conditions: '', parameters: {}, returnData: {} }}
+   { createRecord: { bucket: '', record: {}, returnData: {} }}
+   { updateRecord: { bucket: '', key: '', record: {}, returnData: {} }}
+   { deleteRecord: { bucket: '', key: '', returnData: {} }}
+   
+   // the fetch call has the option of passing the conditions and parameters of a query
+   // records will be filtered based on it
+   
+   // most properties are self explanatory, but returnData needs some explanation on its own.
+   // return data is an object that can be delivered along side the request and which is
+   // returned by the server in the answer to that request. This helps the client side identifying 
+   // what request was answered exactly.
+   
+   // returned by the server as answer to a client request
+   { fetchResult: { bucket: '', records: [], returnData: {} }}
+   { createRecordResult: {}, returnData: {} }
+   { updateRecordResult: {}, returnData: {} }
+   { deleteRecordResult: {}, returnData: {} }
+   { refreshRecordResult: {}, returnData: {} }
+   */
+
+
+   
+   /*
+   
+   Message handling: these functions should be more or less the same for both REST and websocket
+   interfaces... That is, a rest update should be forwarded to all connected websocket clients
+   That means that the onFetch method doesn't speak to the client itself, but should only 
+   return the data from the db request
+   
+   it may actually be a nice idea to only have this function called as a callback after 
+   a call. We don't have to deal with relations anyway, so we don't need to do pre-dbcall checks
+   The only thing is that in order to update session data about queries etc we need access to the
+   original request, which is very easy to do...
+   
+   While using this kind of function as fetch, there is no problem with pre-db checks,
+   but if we want to be able to o pre-db checks like model-value record validation
+   this scheme wouldn't work
+   
+   what if the request is pushed to the onFetch with a callback function to call at the end of the 
+   run? That seems to be a better idea...
+   
+   the callback only needs to be called with one parameter, being the data to send
+   
+   The handlers need to return the data in the proper format, as described above.
+   The handlers also need to check for connections on socketio.
+   
+   Hmm, that last idea just feels wrong... actually, you would rather have ab separate function do the 
+   socket io checking..., even all listeners checking
+   that function should ask all listeners what clients (authenticatedClients) they have and what session 
+   ids they have
+   Then we can get to the session data cache, ask it whether the present record fits the past of the client,
+   and if yes, go back to the listener, check whether a connection exists (or even do if before checking the
+   session data) and send it when a connection exists, or push it to the data cache
+   
+   There is one issue yet to be solved and that is that the current checking only returns yes or no,
+   but not what kind of action would be appropriate... 
+   
+   I just realised that by choosing the data calls as I did I almost forced the server into having to know
+   what kind of action the client should perform on the data... especially the create vs update seems
+   It seems to be wiser to have that decision made by the client whether a record is created or updated..
+   Deletion though should be marked clearly.
+   On the other side, the server already knows what records the client has.
+   So, let's have the answer by the server cache decide what needs to happen with
+   
+   The start of the flow should most definitely be here... There is only the question of the case
+   in which multiple types of client need to be kept up to date... The best seems to be an array
+   of listener objects which need to be checked...
+   
+   */
+   listenersToUpdate: ['socketIO'],
+   
+   updateListeners: function(record,originalrequest){
+      // function to update the existing listeners 
+      var listeners = me.listenersToUpdate;
+      var numlisteners = listeners.length;
+      for(var i=0;i<numlisteners;i++){
+         
+      }      
+   },
+   
+   onFetch: function(message,client,callback){
+      // the onFetch function is called to do the back end call and return the data
+      // as there is no change in the data, the only thing it needs to do versus
+      // the server cache is to update the server cache with the records the current
+      // client / sessionKey combination requested.
+      
+            
+      //sys.puts("OrionServer fetch called");
+      var fetchinfo = message.fetch; 
+      var me = this;
+      me.store.fetch(fetchinfo.bucket, function(data){ 
+         var records = (data instanceof Array)? data: [data]; // better safe than sorry
+         // now push the records to the clients session
+         me.sessionModule.
+         
+         callback({ 
+            fetchResult: { 
+               bucket: fetchinfo.bucket, 
+               records: records, 
+               returnData: message.returnData
+            }
+         });
+         
+      });
+      
    }
 });
 
