@@ -30,6 +30,7 @@ There are a few things the server ends needs to be able to do:
 */
 if(!global.SC) require('./sc/runtime/core');
 var riak = require('./riak-js/lib');
+var sys = require('sys');
 
 global.OrionStore = SC.Object.extend({
    
@@ -67,7 +68,7 @@ global.OrionStore = SC.Object.extend({
       }
    },
    
-   fetch: function(resource,callback){      
+   fetch: function(resource,clientId,callback){      
       // function to get all records for a certain model.
       // resource should be the name of the resource to fetch, the callback is called with an array of results, 
       // or an empty array if the resource should exist but cannot be found 
@@ -75,7 +76,7 @@ global.OrionStore = SC.Object.extend({
       
       // this function expects the callback to be a generated function and have the servers request and response objects
       // included in it as a closure (is it called that way?), as well as some extra data as session info
-      
+      //this should also include a client id...
       if(resource && callback){
          var ret = this.db.map({source: 'function(value){ return [value];}'}).run(resource); // this returns a function
          ret(this._createRiakFetchOnSuccess(callback), this._createRiakFetchOnError(callback));
@@ -114,22 +115,36 @@ global.OrionStore = SC.Object.extend({
       // the layout of the data in recs is as described above
       return function(recs, metadata){
          var ret = [];
+         //sys.puts("fetch recs: " + sys.inspect(recs));
+         //sys.puts("fetch metadata: " + sys.inspect(metadata));
          if(recs && recs instanceof Array){
             var numrecords = recs.length;
             for(var i=0;i<numrecords;i++){
                var curobj = recs[i];
-               var newobj = { type: curobj.bucket, id: curobj.key, vclock: curobj.vclock};
+               var newobj = { type: curobj.bucket, id: curobj.key, key: curobj.key , vclock: curobj.vclock};
                var curvals = curobj.values;
                if(curvals){
-                  // assume curvals has length 1
+                  // assume for the moment curvals is an array with length 1
                   var curvalobj = curvals[0];
                   var curval_meta = curvalobj.metadata;
-                  var curval_data = JSON.parse(curvalobj.data);
-                  for(var key1 in curval_meta){
-                     newobj[key1] = curval_meta[key1];
+                  // do the meta data conversion manually                  
+                  newobj.links = curval_meta["Links"];
+                  newobj.etag = curval_meta['X-Riak-VTag'];
+                  newobj.lastModified = curval_meta["X-Riak-Last-Modified"];
+                  newobj.meta = curval_meta["X-Riak-Meta"];
+                  newobj.timestamp = metadata.headers["date"];
+                  newobj.contentType = metadata.headers["content-type"];
+                  if(newobj.contentType == "application/json"){
+                     var curval_data = JSON.parse(curvalobj.data); 
+                     // copy data
+                     for(var key2 in curval_data){
+                        newobj[key2] = curval_data[key2];
+                     }                     
                   }
-                  for(var key2 in curval_data){
-                     newobj[key2] = curval_data[key2];
+                  else {
+                     // whether this actually is useful in this way... guess not, 
+                     // but at least it prevents calling json.parse on binary data... 
+                     newobj.binary = curvalobj.data; 
                   }
                }
                ret.push(newobj);
@@ -146,14 +161,63 @@ global.OrionStore = SC.Object.extend({
       };
    },
    
-   retrieveRecord: function(resource){
+   refreshRecord: function(resource,clientId,callback){
+      // function to retrieve a record using the bucket and key on the resource object
+      // the refreshRecord is a different kind of request to Riak... It can of course be done using a mapred call
+      // but a direct call is much faster and essentially returns the same information
       
+      var getRec = this.db.get(resource.bucket, resource.key, {clientId: clientId});
+      getRec(this._createRefreshRecordCallback(resource,callback));
    },
    
-   createRecord: function(resource, data){
+   _createRefreshRecordCallback: function(resource,callback){
+      return function(recs,metadata){
+         //sys.puts("store refresh callback recs: " + JSON.stringify(recs));
+         //sys.puts("store refresh callback metadata: " + JSON.stringify(metadata));
+         var ret = {
+            bucket: resource.bucket,
+            key: resource.key,
+            id: resource.key
+            };
+         // now copy the recs properties on the return object
+         for(var i in recs){
+            ret[i] = recs[i];
+         }
+         ret.vclock = metadata.headers["x-riak-vclock"];
+         ret.links = [metadata.headers["link"]];
+         ret.etag = metadata.headers["etag"]; // this is small caps for some strange reason
+         ret.lastModified = metadata.headers['last-modified'];
+         ret.contentType = metadata.headers['content-type'];
+         ret.meta = metadata.headers['x-riak-meta'];
+         ret.timestamp = metadata.date;
+         callback(ret);         
+      };
+   },
+   
+   createRecord: function(resource,data,clientId,callback){
       // we need a client id to identify the actions for Riak, we would like a riak bucket/key combination 
       // this information could be retrieved from the user session, it may even be the session key...
       // or even better a username + sessionkey to keep error messages readable
+      var bucket=resource.bucket;
+      if(bucket){
+         var createRec = this.db.save(bucket,null,data,{clientId: clientId});
+         createRec(this._createCreateRecordCallback(resource,data,callback));
+      }
+      else sys.puts("OrionStore received a createRecord request in the wrong format... Cannot create");
+   },
+   
+   _createCreateRecordCallback: function(resource,data,callback){
+      return function(recs,metadata){
+         // recs is empty, metadata already contains the key without having it to pry out
+         // of the location header, thanks riak-node!
+         // so, what we do is return the entire record and include some extra stuff
+         //sys.puts("store create record metadata: " + JSON.stringify(metadata));
+         var newRec = data;
+         newRec.bucket = resource.bucket;
+         newRec.key = metadata.key;
+         newRec.contentType = metadata.type;
+         callback(newRec);
+      }
    },
    
    updateRecord: function(resource,data){

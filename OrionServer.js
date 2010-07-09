@@ -224,7 +224,7 @@ global.OrionServer = SC.Object.extend({
       var me = this;
       models.forEach(function(v){
          if(v.isClass){
-            var resource = (v.prototype.resource)? v.prototype.resource: v.prototype.bucket;
+            var resource = v.prototype.resource? v.prototype.resource: v.prototype.bucket;
             if(resource){
                me._modelCache[resource] = v;  
             }
@@ -289,9 +289,9 @@ global.OrionServer = SC.Object.extend({
 
       	onClientMessage: function(message, client){
       	   sys.puts("onClientMessage in OrionServer called");
-      	   if(message.fetch) me.onFetch.call(me,message,client,function(data){ client.send(data)});
-      	   if(message.refreshRecord) sys.puts("OrionServer refresh called");
-      	   if(message.createRecord) sys.puts("OrionServer create called");
+      	   if(message.fetch) me.onFetch.call(me,message,client,function(data){ client.send(data);});
+      	   if(message.refreshRecord) me.onRefresh.call(me,message,client,function(data) {client.send(data);});
+      	   if(message.createRecord) me.onCreate.call(me,message,client,function(data){ client.send(data);});
       	   if(message.updateRecord) sys.puts("OrionServer update called");
       	   if(message.deleteRecord) sys.puts("OrionServer delete called");
       	}
@@ -385,32 +385,22 @@ global.OrionServer = SC.Object.extend({
    of listener objects which need to be checked...
    
    */
-   listenersToUpdate: ['socketIO'],
    
-   updateListeners: function(record,originalrequest){
-      // function to update the existing listeners 
-      var listeners = me.listenersToUpdate;
-      var numlisteners = listeners.length;
-      for(var i=0;i<numlisteners;i++){
-         
-      }      
-   },
    
    onFetch: function(message,client,callback){
       // the onFetch function is called to do the back end call and return the data
       // as there is no change in the data, the only thing it needs to do versus
       // the server cache is to update the server cache with the records the current
       // client / sessionKey combination requested.
-      
-            
+               
       //sys.puts("OrionServer fetch called");
       var fetchinfo = message.fetch; 
       var me = this;
-      me.store.fetch(fetchinfo.bucket, function(data){ 
+      var clientId = [client.user,client.sessionKey].join("_");
+      me.store.fetch(fetchinfo.bucket,clientId,function(data){ 
          var records = (data instanceof Array)? data: [data]; // better safe than sorry
          // now push the records to the clients session
-         me.sessionModule.
-         
+         me.sessionModule.storeRecords(client.user,client.sessionKey,records);
          callback({ 
             fetchResult: { 
                bucket: fetchinfo.bucket, 
@@ -418,50 +408,122 @@ global.OrionServer = SC.Object.extend({
                returnData: message.returnData
             }
          });
-         
       });
+   },
+   
+   onRefresh: function(message,client,callback){
+      // the onRefresh function is called to do the back end call and return the
+      // data. As there is probably no change in data, we don't have to let
+      // other clients know. For consistency, let's store the record in the session
+      // information anyway to update the timestamp, maybe it can have some nice 
+      // purpose in the future
+      sys.puts("OrionServer onRefresh called");
+      var refreshRec = message.refreshRecord;
+      var bucket = refreshRec.bucket;
+      var key = refreshRec.key;
+      var me = this;
+      var clientId = [client.user,client.sessionKey].join("_");
+      if(bucket && key){
+         this.store.refreshRecord({bucket: bucket, key: key},clientId,function(val){ 
+            callback(val);
+         });
+      }
+      else sys.puts("OrionServer received an invalid refreshRecord call.");
+   },
+   
+   distributeChanges: function(record,action){
+      // function to actually distribute a change in the database.
+      // the record contains the new data, the action contains the original action by the client
+      // the actions are "create","update","delete"... Depending on what the session cache tells us
+      // ("bucketkey" or "query") and the action, server side requests will be made to the client.
+      // the server doesn't expect any confirmation back! 
+      var matchingUserSessions = this.sessionModule.getMatchingUserSessionsForRecord(record);
       
+      /* 
+      lets make a scheme of what action and what match type what server side request should be
+      
+      create:
+         - bucketkey: highly unlikely and rather problematic... in this case the server should generate a warning...
+                      The only case I can think of this happening is the delete action of a client results in 
+                      a newly creation of the same record by another client... it still stinks...
+         - query: this is very likely. in this case the server should send a createRecord message to the client
+                  and update the sessionData of the client
+         
+      update: 
+         - bucketkey: highly likely, in this case the server should send an updateRecord message to the client
+         - query: rather peculiar, but might be possible... in this case send a createRecord message to the client,
+                  if a record like this already exists on the client, it should consider it an update...
+                  
+      delete:
+         - bucketkey: likely, in this case the server should send a deleteRecord message to the client
+         - query: rather peculiar... in this case the server shouldn't do anything, because the record doesn't exist at the 
+                  client anyway
+      */
+      var curUser, curSessionKey, curMatchType;
+      matchingUserSessions.forEach(function(sessionInfo){
+         curUser = sessionInfo.user;
+         curSessionKey = sessionInfo.sessionKey;
+         curMatchType = sessionInfo.matchType;
+             
+         switch(action){
+            case 'create': 
+               if(curMatchType == 'bucketkey'){
+                  // whoops??
+               }
+               if(curMatchType == 'query'){
+                  // send a createRecord request to the client and update the clients session
+                  
+                  
+               }
+               break;
+            case 'update':
+               if(curMatchType == 'bucketkey'){
+                  // send an updateRecord request to the client and update the clients session
+               }
+               if(curMatchType == 'query'){
+                  // send a createRecord request to the client and update the clients session
+               }
+               break;
+            case 'delete':
+               if(curMatchType == 'bucketkey'){
+                  // send a delete request to the client and update the clients session
+               }
+               if(curMatchType == 'query'){
+                  // do nothing
+               }
+               break;
+            default: // whoops?? 
+               break;
+         }         
+      });   
+   },
+   
+   // as a side note: I started first with the REST interface, so that is not part of the Listeners
+   // and in essence it seems not to be necessary if the socketIO listener also can do the other types of 
+   // client as is the concept of socket-io...
+   // so there should be only one listener...
+   
+   
+   onCreate: function(message,client,callback){
+      var createRec = message.createRecord;
+      var bucket = createRec.bucket;
+      var data = createRec.record;
+      var clientId = [client.user,client.sessionKey].join("_");
+      var me = this;
+      if(bucket && clientId){
+         this.store.createRecord({bucket: bucket},data,clientId,
+            function(val){
+               // first update the original client and then update the others
+               callback({createRecordResult: {record: val, returnData: createRec.returnData}});
+               me.distributeChanges(val,"create");
+            }
+         );
+      }
    }
+   
+   
+   
 });
 
 
-
-
-
-/*
-		
-server = http.createServer(function(req, res){
-	// your normal server code
-	
-	var path = url.parse(req.url).pathname;
-	switch (path){
-		case '/':
-			res.writeHead(200, {'Content-Type': 'text/html'});
-			res.write('<h1>Welcome. Try the <a href="/chat.html">chat</a> example.</h1>');
-			res.end();
-			break;
-			
-		default:
-			if (/\.(js|html|swf)$/.test(path)){
-				try {
-					var swf = path.substr(-4) === '.swf';
-					res.writeHead(200, {'Content-Type': swf ? 'application/x-shockwave-flash' : ('text/' + (path.substr(-3) === '.js' ? 'javascript' : 'html'))});
-					res.write(fs.readFileSync(__dirname + path, swf ? 'binary' : 'utf8'), swf ? 'binary' : 'utf8');
-					res.end();
-				} catch(e){ 
-					send404(res); 
-				}			
-				break;
-			}
-		
-			send404(res);
-			break;
-	}
-});
-
-server.listen(8080);
-*/
-
-// socket.io, I choose you
-// simplest chat application evar
 

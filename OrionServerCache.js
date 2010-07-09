@@ -33,7 +33,7 @@ global.OrionUserCache = SC.Object.extend({
    // an array [bucketname][keyname] = record
    _requestQueue: [], // to store request information in case the connection has been severed
    // the idea here is that as soon as a connection closes and no logout has taken place
-   // 
+   // the requests are stored here
    
    indexOfQuery: function(conditions,parameters){
       var queries = this._fetchQueryStore;
@@ -91,8 +91,23 @@ global.OrionUserCache = SC.Object.extend({
       });
    },
    
+   deleteBucketKey: function(bucket,key){
+      // function to delete a bucket key combination from the cache in case of a delete action
+      var storedBucket = this._bucketKeyStore[bucket];
+      if(storedBucket){
+
+      } 
+   },
+   
    shouldReceive: function(record){
-      // function to check whether the current user should receive
+      // function to check whether the current user should receive and what the match is
+      // returns either NO, "bucketkey" or "query".
+      // In case of the bucketkey match the user has actually requested the record in the past
+      // in case of the query match the user hasn't yet requested the record, but 
+      // it fits queries the client has requested.
+      // This makes me think that it would be nice to have the client allow to remove server side 
+      // query info, as it may not be longer interested in results from those queries... 
+      // it could also be done by a timeout, but allowing the client to decide is nicer...
       
       // first thing to check is bucket and key/id
       // only check the queries if the we didn't get a result from the bucket-key check
@@ -105,7 +120,7 @@ global.OrionUserCache = SC.Object.extend({
             // the key exists, check the timestamp..
             // thinking of it, is that actually necessary? whenever this function is called 
             // the timestamp will always be in the past...
-            return YES;
+            return "bucketkey";
          }         
       }
       
@@ -114,7 +129,7 @@ global.OrionUserCache = SC.Object.extend({
       var numqueries = queries.length;
       if(numqueries>0){
          for(var i=0;i<numqueries;i++){
-            if(queries[i].contains(record)) return YES;
+            if(queries[i].contains(record)) return "query";
          }
       }
       return NO;
@@ -125,7 +140,7 @@ global.OrionUserCache = SC.Object.extend({
       this._requestQueue.push(request);
    },
    
-   retrieveQueue: function(){
+   retrieveRequestQueue: function(){
       // function to return all queued records for this user in such a way that 
       // it can be sent of right away, empty the queue when the function returns
       var queue = this._requestQueue;

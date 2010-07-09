@@ -27,7 +27,7 @@ global.OrionSession = SC.Object.extend({
          { 
             sessionKeys: [''],
             lastSeen: [], // date in milliseconds, 
-            serverCache: OrionServerCache.create()
+            sessionData: [OrionServerCache.create()]
          }
      }
      
@@ -102,12 +102,14 @@ global.OrionSession = SC.Object.extend({
       if(!this._loggedInUsers[user]){ // no existing info, create 
          this._loggedInUsers[user] = { 
             sessionKeys: [newSessionKey],
-            lastSeen: [new Date().getTime()]
+            lastSeen: [new Date().getTime()],
+            sessionData: [OrionServerCache.create()]
          };         
       }
       else { // 
          this._loggedInUsers[user].sessionKeys.push(newSessionKey);
          this._loggedInUsers[user].lastSeen.push(new Date().getTime());
+         this._loggedInUsers[user].sessionData.push(OrionServerCache.create());
       }
       var sessionName = this.sessionName;
       var expDate = new Date();
@@ -135,12 +137,12 @@ global.OrionSession = SC.Object.extend({
    logout: function(user,sessionInfo,sessionKeyOnly){
       // function to logout a user and remove the session information
       var receivedSessionKey = "";
+      var sessionName = this.sessionName;
       if(sessionKeyOnly){
          var sessionInfoObj = querystring.parse(sessionInfo,';','=');
          receivedSessionKey = sessionInfoObj[sessionName];         
       }
       else receivedSessionKey = sessionInfo;
-      var sessionName = this.sessionName;
       
       if(this._loggedInUsers[user]){
          var curSesIndex = this._loggedInUsers[user].sessionKeys.indexOf(receivedSessionKey);
@@ -156,39 +158,79 @@ global.OrionSession = SC.Object.extend({
    // functions to pass on requests to the sessions user cache
    
    storeQuery: function(user,sessionKey,query){
-      if(this._loggedInUsers && this._loggedInUsers[user] && this._loggedInUsers[user][sessionKey]){
-         return this._loggedInUsers[user][sessionKey].serverCache.storeQuery(query);
+      if(this._loggedInUsers && this._loggedInUsers[user]){
+         var sesIndex = this._loggedInUsers[user].sessionKeys.indexOf(sessionKey);
+         if(sesIndex > -1){ // session found
+            return this._loggedInUsers[user].sessionData[sesIndex].storeQuery(query);
+         }
       }
    },
    
    storeBucketKey: function(user,sessionKey,bucket,key,timestamp){
-      if(this._loggedInUsers && this._loggedInUsers[user] && this._loggedInUsers[user][sessionKey]){
-         return this._loggedInUsers[user][sessionKey].serverCache.storeBucketKey(bucket,key,timestamp);
+      if(this._loggedInUsers && this._loggedInUsers[user]){
+         var sesIndex = this._loggedInUsers[user].sessionKeys.indexOf(sessionKey);
+         if(sesIndex > -1){ // session found
+            return this._loggedInUsers[user].sessionData[sesIndex].storeBucketKey(bucket,key,timestamp);
+         }
       }
    },
    
    storeRecords: function(user,sessionKey,records){
-      if(this._loggedInUsers && this._loggedInUsers[user] && this._loggedInUsers[user][sessionKey]){
-         return this._loggedInUsers[user][sessionKey].serverCache.storeRecords(records);
-      }      
+      if(this._loggedInUsers && this._loggedInUsers[user]){
+         var sesIndex = this._loggedInUsers[user].sessionKeys.indexOf(sessionKey);
+         if(sesIndex > -1){ // session found
+            return this._loggedInUsers[user].sessionData[sesIndex].storeRecords(records);
+         }
+      }  
    },
    
    shouldReceive: function(user,sessionKey,record){
-      if(this._loggedInUsers && this._loggedInUsers[user] && this._loggedInUsers[user][sessionKey]){
-         return this._loggedInUsers[user][sessionKey].serverCache.shouldReceive(record);
-      }     
+      if(this._loggedInUsers && this._loggedInUsers[user]){
+         var sesIndex = this._loggedInUsers[user].sessionKeys.indexOf(sessionKey);
+         if(sesIndex > -1){ // session found
+            return this._loggedInUsers[user].sessionData[sesIndex].shouldReceive(record);
+         }
+      }
    },
    
    queueRequest: function(user,sessionKey,request){
-      if(this._loggedInUsers && this._loggedInUsers[user] && this._loggedInUsers[user][sessionKey]){
-         return this._loggedInUsers[user][sessionKey].serverCache.queueRequest(request);
+      if(this._loggedInUsers && this._loggedInUsers[user]){
+         var sesIndex = this._loggedInUsers[user].sessionKeys.indexOf(sessionKey);
+         if(sesIndex > -1){ // session found
+            return this._loggedInUsers[user].sessionData[sesIndex].queueRequest(request);
+         }
       }
    },
    
-   retrieveQueue: function(user,sessionKey){
-      if(this._loggedInUsers && this._loggedInUsers[user] && this._loggedInUsers[user][sessionKey]){
-         return this._loggedInUsers[user][sessionKey].serverCache.retrieveQueue();
+   retrieveRequestQueue: function(user,sessionKey){
+      if(this._loggedInUsers && this._loggedInUsers[user]){
+         var sesIndex = this._loggedInUsers[user].sessionKeys.indexOf(sessionKey);
+         if(sesIndex > -1){ // session found
+            return this._loggedInUsers[user].sessionData[sesIndex].retrieveRequestQueue();
+         }
       }
+   },
+   
+   getMatchingUserSessionsForRecord: function(record){
+      // a really bad name for what this record does, but that can be changed later...
+      // the purpose of the function is to check all existing session data to check whether there is a match
+      // between the given record and a specific session
+      // it returns an array with users and sessions and for what reason a match was found (bucketkey or query)
+      
+      var ret = [];
+      var knownUsers = this._loggedInUsers;
+      var curSessionCache, isMatch;
+      knownUsers.forEach(function(username,curuser){
+         for(var i=0,len=curuser.sessionData.length;i<len;i++){
+            curSessionCache = curusers.sessionData[i];
+            isMatch = curSessionCache.shouldReceive(record);
+            if(isMatch){
+               ret.push({ user: username, sessionKey: curUsers.sessionKeys[i], matchType: isMatch });
+            }
+         }
+      });
+      return ret;
+
    }
    
 });

@@ -317,6 +317,21 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 	      if(curClient.sessionKey == sessionKey) return curClient;
 	   }
 	   return NO; // return no if no client exists
+	},
+	
+	updateAuthenticatedClient: function(user,sessionKey,request){
+	   // function to update a connected client with the given request
+	   // if connected, update the sessionInfo
+	   // if no connected client exists, queue it on the session object
+	   var client = this.getClientBySessionKey(sessionKey);
+	   if(client && client.isConnected && client.isAuthenticated && client.user == user){ // better be safe than sorry
+	      client.send(request);
+	      this.OrionServer.sessionModule.
+	   }
+	   else {
+	      
+	   }
 	}
+	
   
 });
