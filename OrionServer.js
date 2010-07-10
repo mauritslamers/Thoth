@@ -588,11 +588,15 @@ global.OrionServer = SC.Object.extend({
       var deleteRec = message.deleteRecord;
       var bucket = deleteRec.bucket;
       var key = deleteRec.key;
-      //var data = deleteRec.record; // not sure if this belongs here...
+      var data = deleteRec.record; // this must be here, as we need the record data to distribute...
+      // we could maybe suffice only sending the bucket and key around...
       var clientId = [client.user,client.sessionKey].join("_");
       var me = this;
       if(bucket && key && clientId){
-         this.store.deleteRecord({ bucket: bucket, key: key}, )
+         this.store.deleteRecord({ bucket: bucket, key: key}, clientId, function(val){
+            callback({deleteRecordResult: { record: data, returnData: deleteRec.returnData}});
+            me.distributeChanges(data,"delete",client.user,client.sessionKey);
+         });
       }
    }
    
