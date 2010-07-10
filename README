@@ -9,4 +9,21 @@ Features:
 
 Written with a sproutcore application in mind.
 
+Status: Alpha... 
+	There is client side code to test the setup, which is not included in the project yet.
+	Please feel free to contact me to get it.
+	
+	What works: 
+		- WebSocket connections in a WebSocket enabled browser
+		- Authentication from userdata in a file
+		- Session support
+		- Automatic distribution of changes based on previous requests
+	
+	What still needs to be implemented:
+		- support for sending queries to the server
+		- support for more Riak features in requests to the server
+		- additional authentication modules
+		- binary data support
+		- SC.DataSource client code
+
 License: MIT
