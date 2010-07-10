@@ -276,7 +276,11 @@ global.OrionServer = SC.Object.extend({
       var me = this;
       //this.socketIO = socketIoServer.listen(this.server, {
       //sys.puts("server before socketio init: " + this.server);
-      this.socketIO = OrionSocketListener.create({OrionServer: this }).start(this.server,{
+      
+      // first create because we need to able to refer to it later
+      // I had create().start() but that didn't return the socketlistenerobject ... oops ...
+      this.socketIO = OrionSocketListener.create({OrionServer: this }); 
+      this.socketIO.start(this.server,{
       	onClientConnect: function(client){
       	   //sys.puts("onClientConnect in OrionServer called");
       	   // no particular action needed here...
@@ -292,11 +296,12 @@ global.OrionServer = SC.Object.extend({
       	   if(message.fetch) me.onFetch.call(me,message,client,function(data){ client.send(data);});
       	   if(message.refreshRecord) me.onRefresh.call(me,message,client,function(data) {client.send(data);});
       	   if(message.createRecord) me.onCreate.call(me,message,client,function(data){ client.send(data);});
-      	   if(message.updateRecord) sys.puts("OrionServer update called");
-      	   if(message.deleteRecord) sys.puts("OrionServer delete called");
+      	   if(message.updateRecord) me.onUpdate.call(me,message,client,function(data){ client.send(data);});
+      	   if(message.deleteRecord) me.onDelete.call(me,message,client,function(data){ client.send(data);});
       	}
       	
       });
+      //sys.puts("When attaching the socketIO server, this refers to " + sys.inspect(this));
    },
    
    start: function(){
@@ -385,8 +390,7 @@ global.OrionServer = SC.Object.extend({
    of listener objects which need to be checked...
    
    */
-   
-   
+
    onFetch: function(message,client,callback){
       // the onFetch function is called to do the back end call and return the data
       // as there is no change in the data, the only thing it needs to do versus
@@ -400,7 +404,10 @@ global.OrionServer = SC.Object.extend({
       me.store.fetch(fetchinfo.bucket,clientId,function(data){ 
          var records = (data instanceof Array)? data: [data]; // better safe than sorry
          // now push the records to the clients session
-         //me.sessionModule.storeRecords(client.user,client.sessionKey,records);
+         me.sessionModule.storeRecords(client.user,client.sessionKey,records);
+         
+         // we should also save the query, in case we have one... 
+         
          callback({ 
             fetchResult: { 
                bucket: fetchinfo.bucket, 
@@ -439,6 +446,7 @@ global.OrionServer = SC.Object.extend({
       // the server doesn't expect any confirmation back! 
       // the function will not distribute the changes to the originalUser/sessionKeyCombination
       var matchingUserSessions = this.sessionModule.getMatchingUserSessionsForRecord(record);
+      //sys.puts(" matching User sessions: " + sys.inspect(matchingUserSessions));
       
       /* 
       lets make a scheme of what action and what match type what server side request should be
@@ -468,54 +476,57 @@ global.OrionServer = SC.Object.extend({
       as soon as the connection is restored, all actions will be sent to the client and the sessionCache updated.
       */
       var curUser, curSessionKey, curMatchType, result, createRequest;
+      var me=this; // needed because everything below is inside a forEach
+      sys.puts("Running matchingUsersSessions forEach within " + sys.inspect(me));
       matchingUserSessions.forEach(function(sessionInfo){
          curUser = sessionInfo.user;
          curSessionKey = sessionInfo.sessionKey;
          curMatchType = sessionInfo.matchType;
-         if((curUser != originalUser) && (curSessionKey != originalSessionKey)){
+         if(curSessionKey !== originalSessionKey){
             switch(action){
                case 'create': 
                   if(curMatchType == 'bucketkey'){
                      // whoops??, just create a server side error message for now
-                     sys.puts("The combination of a newly csreated record that matches a bucket/key combination for a different user hasn't been implemented yet.");
+                     sys.puts("The combination of a newly created record that matches a bucket/key combination for a different user hasn't been implemented yet.");
                   }
                   if(curMatchType == 'query'){
                      // send a createRecord request to the client and update the clients sessions
                      createRequest =  {createRecord: { bucket: record.bucket, key: record.key, record: record}};
-                     result = this.socketIO.updateAuthenticatedClient(curUser,curSessionKey,createRequest);
+                     result = me.socketIO.updateAuthenticatedClient(curUser,curSessionKey,createRequest);
                      if(result){
                         // update clients session
-                        this.sessionModule.storeBucketKey(curUser,curSessionKey,record.bucket,record.key);
+                        me.sessionModule.storeBucketKey(curUser,curSessionKey,record.bucket,record.key);
                      }
                      else {
                         // not sent to the client, push it to the request Queue
-                        this.sessionModule.queueRequest(curUser,curSessionKey,createRequest);
+                        me.sessionModule.queueRequest(curUser,curSessionKey,createRequest);
                      }
                   }
                   break;
                case 'update':
                   if(curMatchType == 'bucketkey'){
+                     sys.puts("trying to send an update to user " + curUser + " with sessionKey " + curSessionKey);
                      // send an updateRecord request to the client and update the clients session
                      var updateRequest = { updateRecord: { bucket: record.bucket, key: record.key, record: record}};
-                     result = this.socketIO.updateAuthenticatedClient(curUser,curSessionKey,updateRequest);
+                     result = me.socketIO.updateAuthenticatedClient(curUser,curSessionKey,updateRequest);
                      if(result){
-                        this.sessionModule.queueRequest(curUser,curSessionKey,record.bucket,record.key);
+                        me.sessionModule.queueRequest(curUser,curSessionKey,record.bucket,record.key);
                      }
                      else {
-                        this.sessionModule.queueRequest(curUser,curSessionKey,updateRequest);
+                        me.sessionModule.queueRequest(curUser,curSessionKey,updateRequest);
                      }
                   }
                   if(curMatchType == 'query'){
                      // send a createRecord request to the client and update the clients session
                      createRequest =  {createRecord: { bucket: record.bucket, key: record.key, record: record}};
-                     result = this.socketIO.updateAuthenticatedClient(curUser,curSessionKey,createRequest);
+                     result = me.socketIO.updateAuthenticatedClient(curUser,curSessionKey,createRequest);
                      if(result){
                         // update clients session
-                        this.sessionModule.storeBucketKey(curUser,curSessionKey,record.bucket,record.key);
+                        me.sessionModule.storeBucketKey(curUser,curSessionKey,record.bucket,record.key);
                      }
                      else {
                         // not sent to the client, push it to the request Queue
-                        this.sessionModule.queueRequest(curUser,curSessionKey,createRequest);
+                        me.sessionModule.queueRequest(curUser,curSessionKey,createRequest);
                      }
                   }
                   break;
@@ -523,14 +534,14 @@ global.OrionServer = SC.Object.extend({
                   if(curMatchType == 'bucketkey'){
                      // send a delete request to the client and update the clients session
                      var deleteRequest = { deleteRecord: { bucket: record.bucket, key: record.key, record: record}};
-                     result = this.socketIO.updateAuthenticatedClient(curUser,curSessionKey,deleteRequest);
+                     result = me.socketIO.updateAuthenticatedClient(curUser,curSessionKey,deleteRequest);
                      if(result){
                         // update clients session
-                        this.sessionModule.deleteBucketKey(curUser,curSessionKey,record.bucket,record.key);
+                        me.sessionModule.deleteBucketKey(curUser,curSessionKey,record.bucket,record.key);
                      }
                      else {
                         // not sent to the client, push it to the request Queue
-                        this.sessionModule.queueRequest(curUser,curSessionKey,createRequest);
+                        me.sessionModule.queueRequest(curUser,curSessionKey,createRequest);
                      }                  
                   }
                   if(curMatchType == 'query'){
@@ -578,7 +589,7 @@ global.OrionServer = SC.Object.extend({
         this.store.updateRecord({bucket: bucket, key: key}, data, clientId,
            function(val){
               callback({updateRecordResult: {record: val, returnData: updateRec.returnData}}); // not entirely sure this obj layout is correct
-              me.distruteChanges(val,"update",client.user,client.sessionKey);
+              me.distributeChanges(val,"update",client.user,client.sessionKey);
            }
         );
      }

@@ -20,12 +20,13 @@ program itself
 
 
 */
+var sys = require('sys');
 
 global.OrionUserCache = SC.Object.extend({
    
    // an array [bucketname][keyname] = timestamp;
    
-   _bucketKeyStore: [], 
+   _bucketKeyStore: {}, 
    
    // an array: [bucketname] = query
    _fetchQueryStore: [],
@@ -76,7 +77,7 @@ global.OrionUserCache = SC.Object.extend({
          }
       }
       else { // if the bucket doesn't exist, create it
-         this._bucketKeyStore[bucket] = [];
+         this._bucketKeyStore[bucket] = {};
          this._bucketKeyStore[bucket][key] = timestamp;
       }
    },
@@ -85,10 +86,12 @@ global.OrionUserCache = SC.Object.extend({
       // a short cut function to store the bucket-key combinations from an array of records
       var curbucket,curkey,me=this;
       records.forEach(function(record){
+         //sys.puts("storeRecords: " + JSON.stringify(record));
          curbucket = record.bucket;
-         curkey = record.id;
+         curkey = record.key;
          me.storeBucketKey(curbucket,curkey, new Date().getTime());
       });
+      //sys.puts("current users bucketkeystore after storeRecords: " + sys.inspect(this._bucketKeyStore));
    },
    
    deleteBucketKey: function(bucket,key){
@@ -103,7 +106,7 @@ global.OrionUserCache = SC.Object.extend({
       var curbucket,curkey,me=this;
       records.forEach(function(record){
          curbucket = record.bucket;
-         curkey = record.id;
+         curkey = record.key;
          me.deleteBucketKey(curbucket,curkey);
       });      
    },
@@ -123,7 +126,7 @@ global.OrionUserCache = SC.Object.extend({
       var bucketkeystore = this._bucketKeyStore,
           recordbucket = record.bucket,
           recordkey = record.key;
-      
+      //sys.puts("Starting shouldReceive with bucket " + recordbucket + " and key " + recordkey + " and record " + sys.inspect(record));
       if(bucketkeystore[recordbucket]){
          if(bucketkeystore[recordbucket][recordkey]){
             // the key exists, check the timestamp..

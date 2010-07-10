@@ -43,6 +43,8 @@ global.OrionSession = SC.Object.extend({
    */
    
    _loggedInUsers: {},  // an object containing objects containing info
+   
+   _knownUsers: [], // an array containing the keys of _loggedInUsers
 
    _timeOutDurationCache: null, // to cache the calculation of timeOutDuration to milliseconds
    
@@ -105,7 +107,8 @@ global.OrionSession = SC.Object.extend({
             sessionKeys: [newSessionKey],
             lastSeen: [new Date().getTime()],
             sessionData: [OrionUserCache.create()]
-         };         
+         }; 
+         this._knownUsers.push(user);        
       }
       else { // 
          this._loggedInUsers[user].sessionKeys.push(newSessionKey);
@@ -152,6 +155,12 @@ global.OrionSession = SC.Object.extend({
             this._loggedInUsers[user].sessionKeys.removeAt(curSesIndex);
             this._loggedInUsers[user].lastSeen.remoteAt(curSesIndex);
          } // sessionkey doesn't exist, ignore
+         // always check if there are any sessions left
+         if(this._loggedInUsers[user].sessionKeys.length == 0){
+            // remove the user from the _loggedInUsers as well as the knownUsers cache
+            delete this._loggedInUsers[user];
+            this._knownUsers.removeObject(user);
+         }
       }
       // if the user doesn't exist anymore in the session info, ignore
    },
@@ -201,7 +210,7 @@ global.OrionSession = SC.Object.extend({
             return this._loggedInUsers[user].sessionData[sesIndex].deleteRecords(records);
          }
       }      
-   }
+   },
    
    shouldReceive: function(user,sessionKey,record){
       if(this._loggedInUsers && this._loggedInUsers[user]){
@@ -237,19 +246,23 @@ global.OrionSession = SC.Object.extend({
       // it returns an array with users and sessions and for what reason a match was found (bucketkey or query)
       
       var ret = [];
-      var knownUsers = this._loggedInUsers;
-      var curSessionCache, isMatch;
-      knownUsers.forEach(function(username,curuser){
-         for(var i=0,len=curuser.sessionData.length;i<len;i++){
-            curSessionCache = curusers.sessionData[i];
-            isMatch = curSessionCache.shouldReceive(record);
-            if(isMatch){
-               ret.push({ user: username, sessionKey: curUsers.sessionKeys[i], matchType: isMatch });
+      var knownUsers = this._knownUsers;
+      var curSessionCache, isMatch,curUser,curUserInfo,numSessions;
+      for(var i=0,len=knownUsers.length;i<len;i++){
+         curUser = knownUsers[i];
+         if(curUser){
+            curUserInfo = this._loggedInUsers[curUser];
+            numSessions = curUserInfo.sessionKeys.length; // sessionKeys rules the set
+            for(var j=0;j<numSessions;j++){
+               curSessionCache = curUserInfo.sessionData[j];
+               isMatch = curSessionCache.shouldReceive(record);
+               if(isMatch){
+                  ret.push({user: curUser, sessionKey: curUserInfo.sessionKeys[j], matchType: isMatch});
+               }
             }
          }
-      });
+      }
       return ret;
-
-   }
+   } 
    
 });

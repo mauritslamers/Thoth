@@ -125,7 +125,7 @@ global.OrionStore = SC.Object.extend({
                sys.puts("fetch return num elements: " + numrecords);
                for(var i=0;i<numrecords;i++){
                   var curobj = recs[i];
-                  var newobj = { type: curobj.bucket, id: curobj.key, key: curobj.key , vclock: curobj.vclock};
+                  var newobj = { bucket: curobj.bucket, id: curobj.key, key: curobj.key , vclock: curobj.vclock};
                   var curvals = curobj.values;
                   if(curvals){
                      // assume for the moment curvals is an array with length 1
@@ -239,7 +239,7 @@ global.OrionStore = SC.Object.extend({
       var opts = clientId? { clientId: clientId }: null;
       if(bucket && key && opts){
          var updateRec = this.db.save(bucket,key,data,opts);
-         updateRec(this._createUpdateRecordCallback(callback));
+         updateRec(this._createUpdateRecordCallback(resource,data,callback));
       }
    },
    
@@ -247,9 +247,14 @@ global.OrionStore = SC.Object.extend({
    _createUpdateRecordCallback: function(resource,data,callback){
       return function(recs,metadata){
          // update doesn't return the updated record, so we need to have the original data
+         // we also need to add few items, like bucket, key etc
+         var returndata = data;
+         returndata.bucket = resource.bucket;
+         returndata.key = resource.key;
+         returndata.date = metadata.date;
          callback(data);
       }
-   }
+   },
    
    deleteRecord: function(resource,clientId,callback){
       // we need a client id to identify the actions for Riak, we would like a riak bucket/key combination
