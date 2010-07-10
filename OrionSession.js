@@ -185,6 +185,24 @@ global.OrionSession = SC.Object.extend({
       }  
    },
    
+   deleteBucketKey: function(user,sessionKey,bucket,key){
+      if(this._loggedInUsers && this._loggedInUsers[user]){
+         var sesIndex = this._loggedInUsers[user].sessionKeys.indexOf(sessionKey);
+         if(sesIndex > -1){ // session found
+            return this._loggedInUsers[user].sessionData[sesIndex].deleteBucketKey(bucket,key);
+         }
+      }   
+   },
+   
+   deleteRecords: function(user,sessionKey,records){
+      if(this._loggedInUsers && this._loggedInUsers[user]){
+         var sesIndex = this._loggedInUsers[user].sessionKeys.indexOf(sessionKey);
+         if(sesIndex > -1){ // session found
+            return this._loggedInUsers[user].sessionData[sesIndex].deleteRecords(records);
+         }
+      }      
+   }
+   
    shouldReceive: function(user,sessionKey,record){
       if(this._loggedInUsers && this._loggedInUsers[user]){
          var sesIndex = this._loggedInUsers[user].sessionKeys.indexOf(sessionKey);

@@ -431,12 +431,13 @@ global.OrionServer = SC.Object.extend({
       else sys.puts("OrionServer received an invalid refreshRecord call.");
    },
    
-   distributeChanges: function(record,action){
+   distributeChanges: function(record,action,originalUser,originalSessionKey){
       // function to actually distribute a change in the database.
       // the record contains the new data, the action contains the original action by the client
       // the actions are "create","update","delete"... Depending on what the session cache tells us
       // ("bucketkey" or "query") and the action, server side requests will be made to the client.
       // the server doesn't expect any confirmation back! 
+      // the function will not distribute the changes to the originalUser/sessionKeyCombination
       var matchingUserSessions = this.sessionModule.getMatchingUserSessionsForRecord(record);
       
       /* 
@@ -453,49 +454,94 @@ global.OrionServer = SC.Object.extend({
          - bucketkey: highly likely, in this case the server should send an updateRecord message to the client
          - query: rather peculiar, but might be possible... in this case send a createRecord message to the client,
                   if a record like this already exists on the client, it should consider it an update...
+                  the use case here actually is less peculiar than originally thought:
+                  it could be that some property has changed (or even permissions?)
+                  which makes it match an existing query
                   
       delete:
          - bucketkey: likely, in this case the server should send a deleteRecord message to the client
          - query: rather peculiar... in this case the server shouldn't do anything, because the record doesn't exist at the 
                   client anyway
+                  
+      
+      When the request is queued, we don't need to do anything else...
+      as soon as the connection is restored, all actions will be sent to the client and the sessionCache updated.
       */
-      var curUser, curSessionKey, curMatchType;
+      var curUser, curSessionKey, curMatchType, result, createRequest;
       matchingUserSessions.forEach(function(sessionInfo){
          curUser = sessionInfo.user;
          curSessionKey = sessionInfo.sessionKey;
          curMatchType = sessionInfo.matchType;
-             
-         switch(action){
-            case 'create': 
-               if(curMatchType == 'bucketkey'){
-                  // whoops??
-               }
-               if(curMatchType == 'query'){
-                  // send a createRecord request to the client and update the clients session
-                  
-                  
-               }
-               break;
-            case 'update':
-               if(curMatchType == 'bucketkey'){
-                  // send an updateRecord request to the client and update the clients session
-               }
-               if(curMatchType == 'query'){
-                  // send a createRecord request to the client and update the clients session
-               }
-               break;
-            case 'delete':
-               if(curMatchType == 'bucketkey'){
-                  // send a delete request to the client and update the clients session
-               }
-               if(curMatchType == 'query'){
-                  // do nothing
-               }
-               break;
-            default: // whoops?? 
-               break;
-         }         
-      });   
+         if((curUser != originalUser) && (curSessionKey != originalSessionKey)){
+            switch(action){
+               case 'create': 
+                  if(curMatchType == 'bucketkey'){
+                     // whoops??, just create a server side error message for now
+                     sys.puts("The combination of a newly csreated record that matches a bucket/key combination for a different user hasn't been implemented yet.");
+                  }
+                  if(curMatchType == 'query'){
+                     // send a createRecord request to the client and update the clients sessions
+                     createRequest =  {createRecord: { bucket: record.bucket, key: record.key, record: record}};
+                     result = this.socketIO.updateAuthenticatedClient(curUser,curSessionKey,createRequest);
+                     if(result){
+                        // update clients session
+                        this.sessionModule.storeBucketKey(curUser,curSessionKey,record.bucket,record.key);
+                     }
+                     else {
+                        // not sent to the client, push it to the request Queue
+                        this.sessionModule.queueRequest(curUser,curSessionKey,createRequest);
+                     }
+                  }
+                  break;
+               case 'update':
+                  if(curMatchType == 'bucketkey'){
+                     // send an updateRecord request to the client and update the clients session
+                     var updateRequest = { updateRecord: { bucket: record.bucket, key: record.key, record: record}};
+                     result = this.socketIO.updateAuthenticatedClient(curUser,curSessionKey,updateRequest);
+                     if(result){
+                        this.sessionModule.queueRequest(curUser,curSessionKey,record.bucket,record.key);
+                     }
+                     else {
+                        this.sessionModule.queueRequest(curUser,curSessionKey,updateRequest);
+                     }
+                  }
+                  if(curMatchType == 'query'){
+                     // send a createRecord request to the client and update the clients session
+                     createRequest =  {createRecord: { bucket: record.bucket, key: record.key, record: record}};
+                     result = this.socketIO.updateAuthenticatedClient(curUser,curSessionKey,createRequest);
+                     if(result){
+                        // update clients session
+                        this.sessionModule.storeBucketKey(curUser,curSessionKey,record.bucket,record.key);
+                     }
+                     else {
+                        // not sent to the client, push it to the request Queue
+                        this.sessionModule.queueRequest(curUser,curSessionKey,createRequest);
+                     }
+                  }
+                  break;
+               case 'delete':
+                  if(curMatchType == 'bucketkey'){
+                     // send a delete request to the client and update the clients session
+                     var deleteRequest = { deleteRecord: { bucket: record.bucket, key: record.key, record: record}};
+                     result = this.socketIO.updateAuthenticatedClient(curUser,curSessionKey,deleteRequest);
+                     if(result){
+                        // update clients session
+                        this.sessionModule.deleteBucketKey(curUser,curSessionKey,record.bucket,record.key);
+                     }
+                     else {
+                        // not sent to the client, push it to the request Queue
+                        this.sessionModule.queueRequest(curUser,curSessionKey,createRequest);
+                     }                  
+                  }
+                  if(curMatchType == 'query'){
+                     // do nothing
+                  }
+                  break;
+               default: // whoops?? 
+                  break;
+            }                     
+         }    
+      });   // end forEach matchingSessions
    },
    
    // as a side note: I started first with the REST interface, so that is not part of the Listeners
@@ -515,9 +561,38 @@ global.OrionServer = SC.Object.extend({
             function(val){
                // first update the original client and then update the others
                callback({createRecordResult: {record: val, returnData: createRec.returnData}});
-               me.distributeChanges(val,"create");
+               me.distributeChanges(val,"create",client.user,client.sessionKey);
             }
          );
+      }
+   },
+   
+   onUpdate: function(message,client,callback){
+     var updateRec = message.updateRecord;
+     var bucket = updateRec.bucket;
+     var key = updateRec.key;
+     var data = updateRec.record;
+     var clientId = [client.user,client.sessionKey].join("_");
+     var me = this;
+     if(bucket && key && clientId){
+        this.store.updateRecord({bucket: bucket, key: key}, data, clientId,
+           function(val){
+              callback({updateRecordResult: {record: val, returnData: updateRec.returnData}}); // not entirely sure this obj layout is correct
+              me.distruteChanges(val,"update",client.user,client.sessionKey);
+           }
+        );
+     }
+   },
+   
+   onDelete: function(message,client,callback){
+      var deleteRec = message.deleteRecord;
+      var bucket = deleteRec.bucket;
+      var key = deleteRec.key;
+      //var data = deleteRec.record; // not sure if this belongs here...
+      var clientId = [client.user,client.sessionKey].join("_");
+      var me = this;
+      if(bucket && key && clientId){
+         this.store.deleteRecord({ bucket: bucket, key: key}, )
       }
    }
    

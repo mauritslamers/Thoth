@@ -175,8 +175,8 @@ global.OrionStore = SC.Object.extend({
       // function to retrieve a record using the bucket and key on the resource object
       // the refreshRecord is a different kind of request to Riak... It can of course be done using a mapred call
       // but a direct call is much faster and essentially returns the same information
-      
-      var getRec = this.db.get(resource.bucket, resource.key, {clientId: clientId});
+      var opts = {clientId: clientId};
+      var getRec = this.db.get(resource.bucket, resource.key, opts);
       getRec(this._createRefreshRecordCallback(resource,callback));
    },
    
@@ -211,7 +211,9 @@ global.OrionStore = SC.Object.extend({
       var bucket=resource.bucket;
       if(bucket){
          var createRec = this.db.save(bucket,null,data,{clientId: clientId});
-         createRec(this._createCreateRecordCallback(resource,data,callback));
+         createRec(this._createCreateRecordCallback(resource,data,callback)); 
+         // I couldn't find why there seems to be no error callback. so atm I wrote none... 
+         // but there should be a kind of error callback...
       }
       else sys.puts("OrionStore received a createRecord request in the wrong format... Cannot create");
    },
@@ -230,14 +232,41 @@ global.OrionStore = SC.Object.extend({
       }
    },
    
-   updateRecord: function(resource,data){
+   updateRecord: function(resource,data,clientId,callback){
       // we need a client id to identify the actions for Riak, we would like a riak bucket/key combination
-      
+      var bucket=resource.bucket;
+      var key = resource.key;
+      var opts = clientId? { clientId: clientId }: null;
+      if(bucket && key && opts){
+         var updateRec = this.db.save(bucket,key,data,opts);
+         updateRec(this._createUpdateRecordCallback(callback));
+      }
    },
    
-   deleteRecord: function(resource,key){
-      // we need a client id to identify the actions for Riak, we would like a riak bucket/key combination   
+   // we may need to include some other nice things, like json detection...?
+   _createUpdateRecordCallback: function(resource,data,callback){
+      return function(recs,metadata){
+         // update doesn't return the updated record, so we need to have the original data
+         callback(data);
+      }
    }
+   
+   deleteRecord: function(resource,clientId,callback){
+      // we need a client id to identify the actions for Riak, we would like a riak bucket/key combination
+      var bucket = resource.bucket,
+          key = resource.key,
+          opts = { clientId: clientId};
+      var delRec = this.db.remove(bucket,key,opts);
+      delRec(this._createDeleteRecordCallback(callback));
+   },
+   
+   _createDeleteRecordCallback: function(callback){
+      return function(recs,meta){
+        callback();
+      };
+   }
+   
+   
    
    
 });

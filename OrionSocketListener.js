@@ -118,16 +118,7 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 		transports['websocket'] = OrionSocketWSClient; // override the websocket 
 		
 		this.options.log('socket.io ready - accepting connections');
-  },
-
-	broadcast: function(message, except){
-		for (var i = 0, l = this.clients.length; i < l; i++){
-			if (this.clients[i] && (!except || [].concat(except).indexOf(this.clients[i].sessionId) == -1)){
-				this.clients[i].send(message);
-			}
-		}
-		return this;
-	},
+   },
 
 	check: function(req, res, httpUpgrade, head){
 		var path = url.parse(req.url).pathname, parts, cn;
@@ -212,6 +203,8 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 	               this.unAuthenticatedClients.removeObject(client);
 	               this.authenticatedClients.push(client);
 	               this._authSuccessMsg(client); // send the user the session key
+	               // now send the client the request queue, if it exists
+	               this._sendRequestQueue(client);
 	               return YES; 
 	            }
 	            else {
@@ -241,6 +234,25 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 	
 	_authSuccessMsg: function(client){
 	   client.send({ authSuccess: { user: client.user, sessionKey: client.sessionKey}});
+	},
+	
+	_sendRequestQueue: function(client){
+	   if(client){
+   	   var sessionModule = this.OrionServer.sessionModule;
+   	   var requestQueue = sessionModule.retrieveRequestQueue(client.user,client.sessionKey);
+   	   var request;
+         for(var i=0,len=requestQueue.length;i<len;i++){
+            request = requestQueue[i];
+            client.send(request);
+            // update client session info
+            if(request.createRecord || request.updateRecord){
+               sessionModule.storeBucketKey(client.user,client.sessionKey,request.bucket, request.key); 
+            } 
+            if(request.deleteRecord){
+               sessionModule.deleteBucketKey(client.user,client.sessionKey,request.bucket,request.key);
+            }
+         }
+	   }
 	},
 	
 	_logoutRequest: function(data, client){

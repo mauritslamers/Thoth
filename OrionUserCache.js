@@ -39,7 +39,7 @@ global.OrionUserCache = SC.Object.extend({
       var queries = this._fetchQueryStore;
       for(var i=0,l=queries.length;i<l;i++){
         var curQuery = queries[i];
-        if((curQuery.conditions == conditions) && (curQuery.parameters.isEqual(parameters))){
+        if((curQuery.conditions == conditions) && curQuery.parameters.isEqual(parameters)){
            // conditions is a string, parameters an object
            return i;
         }
@@ -84,7 +84,7 @@ global.OrionUserCache = SC.Object.extend({
    storeRecords: function(records){
       // a short cut function to store the bucket-key combinations from an array of records
       var curbucket,curkey,me=this;
-      records.forEach(function(v){
+      records.forEach(function(record){
          curbucket = record.bucket;
          curkey = record.id;
          me.storeBucketKey(curbucket,curkey, new Date().getTime());
@@ -95,8 +95,17 @@ global.OrionUserCache = SC.Object.extend({
       // function to delete a bucket key combination from the cache in case of a delete action
       var storedBucket = this._bucketKeyStore[bucket];
       if(storedBucket){
-
+         if(storedBucket[key]) delete storedBucket[key];
       } 
+   },
+   
+   deleteRecords: function(records){
+      var curbucket,curkey,me=this;
+      records.forEach(function(record){
+         curbucket = record.bucket;
+         curkey = record.id;
+         me.deleteBucketKey(curbucket,curkey);
+      });      
    },
    
    shouldReceive: function(record){
