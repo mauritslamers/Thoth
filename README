@@ -1,0 +1,12 @@
+OrionNodeRiak
+
+A Websocket server for Node using Riak as a back end.
+
+Features: 
+ - Session support
+ - Authentication support
+ - Automated updates pushed to clients
+
+Written with a sproutcore application in mind.
+
+License: MIT
