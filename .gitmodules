@@ -1,3 +1,0 @@
-[submodule "riak-js"]
-	path = riak-js
-	url = git://github.com/frank06/riak-js
