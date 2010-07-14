@@ -211,8 +211,13 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    
    */
    
-   fetch: function(){
-      
+   fetch: function(store,query){
+      var rectype = query.get('recordType');
+      if(rectype && query.isRemote()){
+         if(!this.isConnected) return NO; // for the moment return no when the connection is lost, maybe queuing queries is an option??
+         
+         // we have to pry out the relations 
+      }
       
    },
    
