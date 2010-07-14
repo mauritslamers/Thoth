@@ -12,6 +12,7 @@ var myModel = require('./myModel').myModel;
 
 var myServer = OrionServer.create({
    models: [myModel],
+   port: 8080,
    store: OrionStore.create(),
    authModule: OrionFileAuth.create({ fileName: 'myUsers'})
 });

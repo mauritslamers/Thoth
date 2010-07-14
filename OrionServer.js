@@ -32,6 +32,8 @@ that is that the websocket connection uses a format that is comparable to the ht
 global.OrionServer = SC.Object.extend({
    models: [], // an array of model objects
    
+   port: 8080,
+   
    allowWebSocket: true,
    
    forceAuth: true, // the socket clients haven't been written in such a way atm that changing this to false does anything...
@@ -237,7 +239,7 @@ global.OrionServer = SC.Object.extend({
          
    _startServer: function(){
       this.server = http.createServer(this.createHTTPHandler(this));
-      this.server.listen(8080);
+      this.server.listen(this.port);
    },
    
    /*
