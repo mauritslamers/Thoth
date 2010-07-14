@@ -405,9 +405,17 @@ global.OrionServer = SC.Object.extend({
          var records = (data instanceof Array)? data: [data]; // better safe than sorry
          // now push the records to the clients session
          me.sessionModule.storeRecords(client.user,client.sessionKey,records);
-         
-         // we should also save the query, in case we have one... 
-         
+         // we should also save the query, in case we have one... acti
+         if(fetchinfo.conditions){
+            // we have a query, store it..
+            me.sessionModule.storeQuery(fetchinfo.bucket,fetchinfo.conditions,fetchinfo.parameters);
+         }
+         else {
+            // we don't have a query, but it would still be nice to update clients
+            // so create one that matches 
+            me.sessionModule.storeQuery(fetchinfo.bucket);
+         }
+         // next do the callback
          callback({ 
             fetchResult: { 
                bucket: fetchinfo.bucket, 

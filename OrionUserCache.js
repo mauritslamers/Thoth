@@ -28,19 +28,23 @@ global.OrionUserCache = SC.Object.extend({
    
    _bucketKeyStore: {}, 
    
-   // an array: [bucketname] = query
+   /*
+    an array containing objects of the following setup:
+    {  conditions: "", parameters: {}, bucket: "", queryObject: SC.Query }
+    */
    _fetchQueryStore: [],
    
    // an array [bucketname][keyname] = record
+   
    _requestQueue: [], // to store request information in case the connection has been severed
    // the idea here is that as soon as a connection closes and no logout has taken place
    // the requests are stored here
    
-   indexOfQuery: function(conditions,parameters){
+   indexOfQuery: function(bucket,conditions,parameters){
       var queries = this._fetchQueryStore;
       for(var i=0,l=queries.length;i<l;i++){
         var curQuery = queries[i];
-        if((curQuery.conditions == conditions) && curQuery.parameters.isEqual(parameters)){
+        if((curQuery.conditions == conditions) && curQuery.parameters.isEqual(parameters) && (curQuery.bucket == bucket)){
            // conditions is a string, parameters an object
            return i;
         }
@@ -48,16 +52,27 @@ global.OrionUserCache = SC.Object.extend({
       return -1; // if not found, return -1
    },
    
-   storeQuery: function(conditions,parameters){
+   storeQuery: function(bucket,conditions,parameters){
       //create a query from the given conditions and parameters in case such a query doesn't exist already
       // but in a way we have to make sure there will be no double queries around
-      var indexOfQuery = this.indexOfQuery(conditions,parameters);
-      if(indexOfQuery == -1){
-         // doesn't exist, so add one
-         var query = SC.Query.create(conditions,parameters);
-         query.parse();
-         this._fetchQueryStore.push(query);
-      }
+      if(bucket){ // we need a bucket to be able to store anything useful
+         // first check whether a similar query already exists
+         var indexOfQuery = this.indexOfQuery(bucket,conditions,parameters);
+         if(indexOfQuery == -1){
+            // doesn't exist, so add one
+            var newQueryObj = { bucket: bucket };
+            if(conditions && parameters){ // "normal query"
+               newQueryObj.conditions = conditions;
+               newQueryObj.parameters = parameters;
+               var newquery = SC.Query.create(conditions,parameters);
+               newquery.parse();
+               newQueryObj.queryObject = newquery;
+            }
+            // if no conditions and parameters are given we have a match all for a bucket, so just push
+            this._fetchQueryStore.push(newQueryObj);
+            return YES; // stored
+         } else return NO; // query already exists
+      } else return NO; // no bucket given
    },
    
    storeBucketKey: function(bucket,key,timestamp){
@@ -111,6 +126,10 @@ global.OrionUserCache = SC.Object.extend({
       });      
    },
    
+   deleteQuery: function(bucket, conditions, parameters){
+     // function to delete a query 
+   },
+   
    shouldReceive: function(record){
       // function to check whether the current user should receive and what the match is
       // returns either NO, "bucketkey" or "query".
@@ -139,10 +158,28 @@ global.OrionUserCache = SC.Object.extend({
       // if we are running here, we should check the existing queries
       var queries = this._fetchQueryStore;
       var numqueries = queries.length;
+      var queryObj;
       if(numqueries>0){
          for(var i=0;i<numqueries;i++){
-            if(queries[i].contains(record)) return "query";
-         }
+            queryObj = queries[i];
+            // check whether the current query is for the correct bucket
+            if(queryObj.bucket == recordbucket){
+               // we need that it might fit, just check whether conditions are set
+               // if they are set, they need to match
+               if(queryObj.conditions && queryObj.parameters){
+                  if(queryObj.queryObject.contains(record)){
+                     return "query"; 
+                  } 
+                  else { // conditions exist, but the record doesn't match those conditions
+                     return NO;
+                  }
+               }
+               else {
+                  // if the conditions are not set, we have a match all query for a bucket, so return query
+                  return "query";
+               }
+            } // query doesn't match bucket, continue
+         } // end loop
       }
       return NO;
    },
