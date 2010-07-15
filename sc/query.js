@@ -542,7 +542,7 @@ global.SC.Query = SC.Object.extend(SC.Copyable, SC.Freezable,
       evalType:         'PRIMITIVE',
       
       /** @ignore */
-      evaluate:         function (r,w) { return r.get(this.tokenValue); }
+      evaluate:         function (r,w) { return r[this.tokenValue]; }
     },
 
     'NUMBER': {

@@ -64,7 +64,7 @@ global.OrionUserCache = SC.Object.extend({
             if(conditions && parameters){ // "normal query"
                newQueryObj.conditions = conditions;
                newQueryObj.parameters = parameters;
-               var newquery = SC.Query.create(conditions,parameters);
+               var newquery = SC.Query.create({ conditions: conditions, parameters: parameters});
                newquery.parse();
                newQueryObj.queryObject = newquery;
             }

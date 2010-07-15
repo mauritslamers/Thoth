@@ -115,6 +115,7 @@ global.OrionStore = SC.Object.extend({
       // the layout of the data in recs is as described above
       
       return function(recs, metadata){
+         sys.puts("Store onFetchSuccess run");
          var ret = [];
          //sys.puts("fetch recs: " + sys.inspect(recs));
          if(recs && recs instanceof Array){

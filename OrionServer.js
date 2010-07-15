@@ -395,14 +395,22 @@ global.OrionServer = SC.Object.extend({
    filterRecordByQuery: function(records,conditions,parameters){
       // function to filter a set of records to the conditions and parameters given
       // it creates a temporary query object
-      var query = SC.Query.create(conditions,parameters);
-      var currec, ret = [];
-      query.parse();
-      for(var i=0,len=records.length;i<len;i++){
-         currec = records[i];
-         if(query.contains(currec)) ret.push(currec);
+      if(records){
+         var query = SC.Query.create({conditions: conditions, parameters: parameters});
+         query.parse();
+         var currec, ret = [];
+         for(var i=0,len=records.length;i<len;i++){
+            currec = records[i];
+            // WARNING: the query language should not get the property using .get() as the
+            // records the query object is called with are NOT SC.Record objects and calling 
+            // .get on them to get the property value results in a call to the function overhead
+            // in this case resulting in a call to the function created by the store._createRiakFetchOnSuccess function
+            if(query.contains(currec)){ 
+               ret.push(currec); 
+            }
+         }
+         return ret;         
       }
-      return ret;
    },
 
    onFetch: function(message,client,callback){
@@ -417,27 +425,31 @@ global.OrionServer = SC.Object.extend({
       var clientId = [client.user,client.sessionKey].join("_");
       me.store.fetch(fetchinfo.bucket,clientId,function(data){ 
          var records = (data instanceof Array)? data: [data]; // better safe than sorry
-         // now push the records to the clients session
-         me.sessionModule.storeRecords(client.user,client.sessionKey,records);
-         // we should also save the query, in case we have one... acti
-         if(fetchinfo.conditions){
-            // we have a query, store it..
-            me.sessionModule.storeQuery(fetchinfo.bucket,fetchinfo.conditions,fetchinfo.parameters);
-            // and we need to filter the records given by riak 
+         var bucket = fetchinfo.bucket;
+         var conditions = fetchinfo.conditions;
+         var parameters = fetchinfo.parameters;
+         sys.puts("Fetch conditions: " + conditions + " parameters: " + parameters);
+         // we should also save the query, in case we have one... 
+         if(conditions){
+            // first filter the records given by riak 
             // it seems a bit strange to add the bucket to the records, as there should be no 
             // records from other buckets in the return data from riak
             // it may be useful to move the filtering by query to the store in the future
-            records = me.filterRecordByQuery(records,fetchinfo.conditions,fetchinfo.parameters);
+            records = me.filterRecordByQuery(records,conditions,parameters);            
+            // now push the records to the clients session
+            me.sessionModule.storeRecords(client.user,client.sessionKey,records);
+            // we have a query, store it..
+            me.sessionModule.storeQuery(bucket,conditions,parameters);
          }
          else {
             // we don't have a query, but it would still be nice to update clients
             // so create one that matches 
-            me.sessionModule.storeQuery(fetchinfo.bucket);
+            me.sessionModule.storeQuery(bucket);
          }
          // next do the callback
          callback({ 
             fetchResult: { 
-               bucket: fetchinfo.bucket, 
+               bucket: bucket, 
                records: records, 
                returnData: message.returnData
             }
