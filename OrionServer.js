@@ -419,7 +419,6 @@ global.OrionServer = SC.Object.extend({
       // the server cache is to update the server cache with the records the current
       // client / sessionKey combination requested.
                
-      sys.puts("OrionServer fetch called");
       var fetchinfo = message.fetch; 
       var me = this;
       var clientId = [client.user,client.sessionKey].join("_");
@@ -428,7 +427,6 @@ global.OrionServer = SC.Object.extend({
          var bucket = fetchinfo.bucket;
          var conditions = fetchinfo.conditions;
          var parameters = fetchinfo.parameters;
-         sys.puts("Fetch conditions: " + conditions + " parameters: " + parameters);
          // we should also save the query, in case we have one... 
          if(conditions){
             // first filter the records given by riak 
@@ -439,12 +437,12 @@ global.OrionServer = SC.Object.extend({
             // now push the records to the clients session
             me.sessionModule.storeRecords(client.user,client.sessionKey,records);
             // we have a query, store it..
-            me.sessionModule.storeQuery(bucket,conditions,parameters);
+            me.sessionModule.storeQuery(client.user,client.sessionKey,bucket,conditions,parameters);
          }
          else {
             // we don't have a query, but it would still be nice to update clients
             // so create one that matches 
-            me.sessionModule.storeQuery(bucket);
+            me.sessionModule.storeQuery(client.user,client.sessionKey,bucket);
          }
          // next do the callback
          callback({ 
@@ -516,7 +514,6 @@ global.OrionServer = SC.Object.extend({
       */
       var curUser, curSessionKey, curMatchType, result, createRequest;
       var me=this; // needed because everything below is inside a forEach
-      sys.puts("Running matchingUsersSessions forEach within " + sys.inspect(me));
       matchingUserSessions.forEach(function(sessionInfo){
          curUser = sessionInfo.user;
          curSessionKey = sessionInfo.sessionKey;
@@ -544,7 +541,7 @@ global.OrionServer = SC.Object.extend({
                   break;
                case 'update':
                   if(curMatchType == 'bucketkey'){
-                     sys.puts("trying to send an update to user " + curUser + " with sessionKey " + curSessionKey);
+                     //sys.puts("trying to send an update to user " + curUser + " with sessionKey " + curSessionKey);
                      // send an updateRecord request to the client and update the clients session
                      var updateRequest = { updateRecord: { bucket: record.bucket, key: record.key, record: record}};
                      result = me.socketIO.updateAuthenticatedClient(curUser,curSessionKey,updateRequest);

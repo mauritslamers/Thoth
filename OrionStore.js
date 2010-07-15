@@ -115,7 +115,7 @@ global.OrionStore = SC.Object.extend({
       // the layout of the data in recs is as described above
       
       return function(recs, metadata){
-         sys.puts("Store onFetchSuccess run");
+         //sys.puts("Store onFetchSuccess run");
          var ret = [];
          //sys.puts("fetch recs: " + sys.inspect(recs));
          if(recs && recs instanceof Array){
@@ -123,7 +123,7 @@ global.OrionStore = SC.Object.extend({
             //sys.puts("fetch metadata: " + sys.inspect(metadata));
             if(metadata.type == 'application/json'){
                var numrecords = recs.length;
-               sys.puts("fetch return num elements: " + numrecords);
+               //sys.puts("fetch return num elements: " + numrecords);
                for(var i=0;i<numrecords;i++){
                   var curobj = recs[i];
                   var newobj = { bucket: curobj.bucket, id: curobj.key, key: curobj.key , vclock: curobj.vclock};

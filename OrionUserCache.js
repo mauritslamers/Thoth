@@ -44,7 +44,7 @@ global.OrionUserCache = SC.Object.extend({
       var queries = this._fetchQueryStore;
       for(var i=0,l=queries.length;i<l;i++){
         var curQuery = queries[i];
-        if((curQuery.conditions == conditions) && curQuery.parameters.isEqual(parameters) && (curQuery.bucket == bucket)){
+        if((curQuery.conditions == conditions) && (curQuery.parameters == parameters) && (curQuery.bucket == bucket)){
            // conditions is a string, parameters an object
            return i;
         }
@@ -59,6 +59,7 @@ global.OrionUserCache = SC.Object.extend({
          // first check whether a similar query already exists
          var indexOfQuery = this.indexOfQuery(bucket,conditions,parameters);
          if(indexOfQuery == -1){
+            sys.puts("Creating new query with bucket '" + bucket + "'");
             // doesn't exist, so add one
             var newQueryObj = { bucket: bucket };
             if(conditions && parameters){ // "normal query"
@@ -145,7 +146,7 @@ global.OrionUserCache = SC.Object.extend({
       var bucketkeystore = this._bucketKeyStore,
           recordbucket = record.bucket,
           recordkey = record.key;
-      //sys.puts("Starting shouldReceive with bucket " + recordbucket + " and key " + recordkey + " and record " + sys.inspect(record));
+          
       if(bucketkeystore[recordbucket]){
          if(bucketkeystore[recordbucket][recordkey]){
             // the key exists, check the timestamp..
