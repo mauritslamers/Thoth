@@ -167,11 +167,11 @@ global.OrionSession = SC.Object.extend({
    
    // functions to pass on requests to the sessions user cache
    
-   storeQuery: function(user,sessionKey,query){
+   storeQuery: function(user,sessionKey,bucket,conditions,parameters){
       if(this._loggedInUsers && this._loggedInUsers[user]){
          var sesIndex = this._loggedInUsers[user].sessionKeys.indexOf(sessionKey);
          if(sesIndex > -1){ // session found
-            return this._loggedInUsers[user].sessionData[sesIndex].storeQuery(query);
+            return this._loggedInUsers[user].sessionData[sesIndex].storeQuery(bucket,conditions,parameters);
          }
       }
    },

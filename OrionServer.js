@@ -392,6 +392,18 @@ global.OrionServer = SC.Object.extend({
    of listener objects which need to be checked...
    
    */
+   filterRecordByQuery: function(records,conditions,parameters){
+      // function to filter a set of records to the conditions and parameters given
+      // it creates a temporary query object
+      var query = SC.Query.create(conditions,parameters);
+      var currec, ret = [];
+      query.parse();
+      for(var i=0,len=records.length;i<len;i++){
+         currec = records[i];
+         if(query.contains(currec)) ret.push(currec);
+      }
+      return ret;
+   },
 
    onFetch: function(message,client,callback){
       // the onFetch function is called to do the back end call and return the data
@@ -411,6 +423,11 @@ global.OrionServer = SC.Object.extend({
          if(fetchinfo.conditions){
             // we have a query, store it..
             me.sessionModule.storeQuery(fetchinfo.bucket,fetchinfo.conditions,fetchinfo.parameters);
+            // and we need to filter the records given by riak 
+            // it seems a bit strange to add the bucket to the records, as there should be no 
+            // records from other buckets in the return data from riak
+            // it may be useful to move the filtering by query to the store in the future
+            records = me.filterRecordByQuery(records,fetchinfo.conditions,fetchinfo.parameters);
          }
          else {
             // we don't have a query, but it would still be nice to update clients
