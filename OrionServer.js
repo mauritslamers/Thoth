@@ -14,7 +14,6 @@ if(!global.SC) require('./sc/runtime/core');
 require('./OrionFileAuth');
 require('./OrionSession');
 require('./OrionSocketListener');
-require('./sc/query');
 /*
 The idea behind this Node.js OrionServer is to have a node-js server
 that is reached using a apache proxy to overcome same-origin-policy trouble
@@ -369,7 +368,7 @@ global.OrionServer = SC.Object.extend({
    The handlers need to return the data in the proper format, as described above.
    The handlers also need to check for connections on socketio.
    
-   Hmm, that last idea just feels wrong... actually, you would rather have ab separate function do the 
+   Hmm, that last idea just feels wrong... actually, you would rather have a separate function do the 
    socket io checking..., even all listeners checking
    that function should ask all listeners what clients (authenticatedClients) they have and what session 
    ids they have
@@ -392,37 +391,99 @@ global.OrionServer = SC.Object.extend({
    of listener objects which need to be checked...
    
    */
-   filterRecordByQuery: function(records,conditions,parameters){
-      // function to filter a set of records to the conditions and parameters given
-      // it creates a temporary query object
-      if(records){
-         var query = SC.Query.create({conditions: conditions, parameters: parameters});
-         query.parse();
-         var currec, ret = [];
-         for(var i=0,len=records.length;i<len;i++){
-            currec = records[i];
-            // WARNING: the query language should not get the property using .get() as the
-            // records the query object is called with are NOT SC.Record objects and calling 
-            // .get on them to get the property value results in a call to the function overhead
-            // in this case resulting in a call to the function created by the store._createRiakFetchOnSuccess function
-            if(query.contains(currec)){ 
-               ret.push(currec); 
-            }
-         }
-         return ret;         
-      }
-   },
+
+
+   /*
+      While working on the data source it turns out that doing all the relations on the client side makes things very 
+      complicated. Still it feels wrong to have to define models in two different places. 
+      So the idea now is to send a relation graph from the client to the server to have the server reply in a few different messages
+      Of course it is not a complete relation graph, but just a relation graph of a specific model
+      
+      The fetch request becomes something like this:
+      
+      { fetch: { bucket: '', conditions:'', parameters: '', 
+                  relations: [ { property: '', type: 'toOne', bucket: ''}, { property: '', type: 'toMany', bucket: ''}]}}
+      
+      From this data the server can create a set of messages to be sent to the client
+      The client can know beforehand how many messages to receive (one for the main record data, and one for each relation)
+      
+      the answer of the server will be:
+      
+      - a normal fetchResult
+      - { fetchResult: { relationSet: [ { bucket: '', keys: [''], propertyName: '', data: {} } ], returnData: { requestKey: ''}}} 
+         where:
+            - bucket is the bucket the request belongs to
+            - keys is the set of keys for which the relation data is contained in data
+            - propertyname is the name of the toOne or toMany property
+            - data is the set of keys describing the relation, associative array by key
+            - requestKey is the key of the original request
+         
+      It could turn out to be very useful if the set of storeKeys are stored in the data source as it would speed up 
+      processing of the relation data
+      
+      We need to think about a way to generate the junction table fields, something like [bucketname,"key"].join("_")
+      We also need a way to name the junction bucket/table, the best option seems to be the combination of both bucket names
+      in alphabetised order. 
+   */
+   
 
    onFetch: function(message,client,callback){
       // the onFetch function is called to do the back end call and return the data
       // as there is no change in the data, the only thing it needs to do versus
       // the server cache is to update the server cache with the records the current
       // client / sessionKey combination requested.
+      // this function uses a callback to return the result of the fetch so the function can
+      // be used as you would like...
+      /*
+      the storeRequest is an object with the following layout:
+      { bucket: '', 
+        conditions: '', 
+        parameters: {}, 
+        relations: [ 
+           { bucket: '', type: 'toOne', propertyName: '' }, 
+           { bucket: '', type: 'toMany', propertyName: ''} 
+        ] 
+      } */
                
       var fetchinfo = message.fetch; 
       var me = this;
       var clientId = [client.user,client.sessionKey].join("_");
-      me.store.fetch(fetchinfo.bucket,clientId,function(data){ 
+      var storeRequest = { 
+         bucket: fetchinfo.bucket, 
+         conditions: fetchinfo.conditions, 
+         parameters: fetchinfo.parameters,
+         relations: fetchinfo.relations 
+      };
+      me.store.fetch(storeRequest,clientId,function(data){ 
+         /*
+         The functionality of this callback function is going to change quite a bit... 
+         We need to be aware that in case of relations this function is not only called for the record results
+         but also called once for every relation
+         
+         The difference is that a normal result is an object { recordResult: [records]}
+         and the relations are returned as a { relationSet: { }}
+         */
+         if(data.recordResult){
+            // store the records and the queryinfo in the clients session (if the conditions are not there, the session function 
+            // will automatically convert it into a bucket only query)
+            me.sessionModule.storeRecords(client.user,client.sessionKey,data.recordResult);
+            me.sessionModule.storeQuery(client.user,client.sessionKey,fetchinfo.bucket,fetchinfo.conditions,fetchinfo.parameters);
+            // send off the data
+            callback({ 
+               fetchResult: { 
+                  bucket: bucket, 
+                  records: data.recordResult, 
+                  returnData: message.returnData
+               }
+            });            
+         }
+         if(data.relationSet){
+            callback({
+               fetchResult: {
+                  relationSet: [ data.relationSet ]
+               }
+            });
+         }
          var records = (data instanceof Array)? data: [data]; // better safe than sorry
          var bucket = fetchinfo.bucket;
          var conditions = fetchinfo.conditions;
@@ -430,8 +491,6 @@ global.OrionServer = SC.Object.extend({
          // we should also save the query, in case we have one... 
          if(conditions){
             // first filter the records given by riak 
-            // it seems a bit strange to add the bucket to the records, as there should be no 
-            // records from other buckets in the return data from riak
             // it may be useful to move the filtering by query to the store in the future
             records = me.filterRecordByQuery(records,conditions,parameters);            
             // now push the records to the clients session
@@ -443,6 +502,12 @@ global.OrionServer = SC.Object.extend({
             // we don't have a query, but it would still be nice to update clients
             // so create one that matches 
             me.sessionModule.storeQuery(client.user,client.sessionKey,bucket);
+         }
+         // should we take a look at relations?
+         if(fetchinfo.relations && (fetchinfo.relations instanceof Array)){
+            for(var i=0,len=fetchinfo.relations.length;i<len;i++){
+               me.handleFetchRelation(fetchinfo.relations[i], records, message, client, callback);
+            }
          }
          // next do the callback
          callback({ 

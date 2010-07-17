@@ -27,10 +27,25 @@ There are a few things the server ends needs to be able to do:
 - group system from either fixtures or db
 - permission system
 
+On a later notion, and after a reread of the url mentioned above, it is stated that the back end has to magically know about
+the relations... 
+In writing this node backend a few thoughts about the relation resolving crossed my mind:
+Doing all relations on the client side has a few consequences, one of which is that the client has to have access to all
+data. This causes loads of traffic and sending data to the client it shouldn't have access to. This also causes privacy concerns.
+It therefore makes sense to do at least a part of the relations on the server side. In many systems this forces the developer to
+create a duplicate set of models. This is not really necessary, unless you tell the server what the relations are. This
+enables the server to pull apart the model into the different resources needed and construct the model of the data needed by
+the client. In order for this to work, the client needs to know from what resources the model is actually constructed and therefore the 
+models need to be created containing that data.
+In order to make OrionNodeRiak more modular, this also requires the renaming of some variables in the future, but the most important
+element to make it work is to move all the query stuff into the store. This allows different data stores to be used and different ways of 
+resolving the relations
 */
+
 if(!global.SC) require('./sc/runtime/core');
 var riak = require('./riak-js/lib');
 var sys = require('sys');
+require('./sc/query');
 
 global.OrionStore = SC.Object.extend({
    
@@ -68,18 +83,37 @@ global.OrionStore = SC.Object.extend({
       }
    },
    
-   fetch: function(resource,clientId,callback){      
+   
+   
+   fetch: function(storeRequest,clientId,callback){      
       // function to get all records for a certain model.
       // resource should be the name of the resource to fetch, the callback is called with an array of results, 
       // or an empty array if the resource should exist but cannot be found 
       // the function returns YES if a request is actually made
       
+      /*
+       the storeRequest is an object with the following layout:
+       { bucket: '', 
+         conditions: '', 
+         parameters: {}, 
+         relations: [ 
+            { bucket: '', type: 'toOne', propertyName: '' }, 
+            { bucket: '', type: 'toMany', propertyName: ''} 
+         ] 
+       }
+      */ 
+      // in case of relations, the following is attempted: 
+      // first the normal request is processed
+      // then relations are being resolved one by one
+      // the given callback is called for the normal request, and once for every relation.
+      
       // this function expects the callback to be a generated function and have the servers request and response objects
       // included in it as a closure (is it called that way?), as well as some extra data as session info
       //this should also include a client id...
-      if(resource && callback){
-         var ret = this.db.map({source: 'function(value){ return [value];}'}).run(resource); // this returns a function
-         ret(this._createRiakFetchOnSuccess(callback), this._createRiakFetchOnError(callback));
+      var bucket = storeRequest.bucket;
+      if(bucket && callback){
+         var ret = this.db.map({source: 'function(value){ return [value];}'}).run(bucket); // this returns a function
+         ret(this._createRiakFetchOnSuccess(storeRequest,callback), this._createRiakFetchOnError(storeRequest,callback));
          return YES;
       }
       else return NO;
@@ -108,50 +142,146 @@ global.OrionStore = SC.Object.extend({
    
    */
    
-   _createRiakFetchOnSuccess: function(callback){
+   _createObjectFromFetchData: function(rec,metadata){
+      var newobj = { bucket: rec.bucket, id: rec.key, key: rec.key , vclock: rec.vclock};
+      var curvals = rec.values;
+      if(curvals){
+         // assume for the moment curvals is an array with length 1
+         var curvalobj = curvals[0];
+         var curval_meta = curvalobj.metadata;
+         // do the meta data conversion manually                  
+         newobj.links = curval_meta["Links"];
+         newobj.etag = curval_meta['X-Riak-VTag'];
+         newobj.lastModified = curval_meta["X-Riak-Last-Modified"];
+         newobj.meta = curval_meta["X-Riak-Meta"];
+         newobj.timestamp = metadata.headers["date"];
+         newobj.contentType = metadata.headers["content-type"];
+         var curval_data = JSON.parse(curvalobj.data); 
+         if(curval_data){
+            // copy data if it is proper json
+            for(var key2 in curval_data){
+               newobj[key2] = curval_data[key2];
+            }                                             
+         }
+         else {
+            // just push it as text data
+            newobj.data = curvalobj.data;
+         }
+      }
+      return newobj;      
+   },
+   
+   _filterRecordsByQuery: function(records,storeRequest){
+      // function to filter a set of records to the conditions and parameters given
+      // it creates a temporary query object
+      if(records){
+         var query = SC.Query.create({conditions: storeRequest.conditions, parameters: storeRequest.parameters});
+         query.parse();
+         var currec, ret = [];
+         for(var i=0,len=records.length;i<len;i++){
+            currec = records[i];
+            // WARNING: the query language should not get the property using .get() as the
+            // records the query object is called with are NOT SC.Record objects and calling 
+            // .get on them to get the property value results in a call to the function overhead
+            // in this case resulting in a call to the function created by the store._createRiakFetchOnSuccess function
+            if(query.contains(currec)){ 
+               ret.push(currec); 
+            }
+         }
+         return ret;         
+      }
+   },
+  /*
+  - a normal fetchResult
+  - { fetchResult: { relationSet: [ { bucket: '', keys: [''], propertyName: '', data: {} } ], returnData: { requestKey: ''}}} 
+     where:
+        - bucket is the bucket the request belongs to
+        - keys is the set of keys for which the relation data is contained in data
+        - propertyname is the name of the toOne or toMany property
+        - data is the set of keys describing the relation, associative array by key
+        - requestKey is the key of the original request
+  */ 
+   _fetchRelation: function(storeRequest,relationIndex,records,callback){
+      // this function is different from the normal fetch in the sense that it only needs to 
+      // get the keys of the relations... Unsure how much extra information the toMany arrays in 
+      // SC can handle
+      
+      var modelBucket = storeRequest.bucket;
+      var relation = storeRequest.relations[relationIndex];
+      var relationBucket = relation.bucket;
+      // build junctionBucketname, by taking model and relation,sort them alphabetically and join them with _
+      var junctionBucket = [modelBucket,relationBucket].sort().join("_");
+      var modelRelationKey = [modelBucket,"key"].join("_"); // generate the key name inside the junction table
+      var relationRelationKey = [relationBucket,"key"].join("_"); // generate the key name of the opposite model
+      var junctionRecsRequest = this.db.map({source: 'function(value){ return [value];}'}).run(junctionBucket); // this returns a function
+      junctionRecsRequest(function(junctionRecs,meta){ // success
+         var curquery, currec, curkey, curConditions = relationKey + " = {relKey}", curParameters;
+         var retkeys = [], retdata = {};
+         // we need to go through all records and all junctionRecs to create a set of relations
+         var i,j, recordslen, junctreclen; // indexes
+         var curjunctrec;
+         for(i=0,len=records.length;i<len;i++){
+            currec = records[i];
+            curkey = currec.key;
+            curParameters = { relKey: curkey };
+            curquery = SC.Query.create({ conditions: curConditions, parameters: curParamters});
+            curquery.parse();
+            var data = [];
+            // query set up, now start parsing the records
+            for(j=0,junctreclen=junctionRecs.length;j<junctreclen;j++){
+               curjunctrec = junctionRecs[j].values[0]; // assume values has only one element
+               if(curquery.contains(curjunctrec)){ 
+                  data.push(curjunctrec[relationRelationKey]);
+               }
+            }
+            retkeys.push(curkey);
+            retdata[curkey] = data;
+         }
+         // parsed all records and all junction info
+         // now call the callback with the info
+         var relSet = { bucket: modelBucket, keys: retkeys, propertyName: relation.propertyName, data: retdata };
+         callback({ relationSet: relSet });
+      }, 
+      function(junctionRecs,meta){ // some error, assemble an empty relation set
+         var keys = [], data = {}, currec, curkey;
+         for(var i=0,len=records.length;i<len;i++){
+            currec = records[i];
+            curkey = currec.key;
+            keys.push(curkey);
+            data[curkey] = [];
+         }
+         var curRelSet = { 
+            bucket: modelBucket, 
+            keys: keys, 
+            propertyName: relation.propertyName,
+            data: data
+         };
+         callback({ relationSet: curRelSet });
+      });
+            
+      
+
+   },
+   
+   _createRiakFetchOnSuccess: function(storeRequest,callback){
       // function to create a callback function when Riak succesfully performed a query
       // the callback function should call the callback provided with the raw data fetched from riak
       // let's process the data in such a way that it already resembles an SC record object
       // the layout of the data in recs is as described above
       
+      // as we are moving the query stuff inside the store, there are a few things to add to the current version
+      // - filtering
+      // - relations
+      
+      var me = this;
       return function(recs, metadata){
          //sys.puts("Store onFetchSuccess run");
          var ret = [];
-         //sys.puts("fetch recs: " + sys.inspect(recs));
          if(recs && recs instanceof Array){
-            //sys.puts("RIAK onfetch success: fetch recs: " + JSON.stringify(recs));
-            //sys.puts("fetch metadata: " + sys.inspect(metadata));
             if(metadata.type == 'application/json'){
                var numrecords = recs.length;
-               //sys.puts("fetch return num elements: " + numrecords);
                for(var i=0;i<numrecords;i++){
-                  var curobj = recs[i];
-                  var newobj = { bucket: curobj.bucket, id: curobj.key, key: curobj.key , vclock: curobj.vclock};
-                  var curvals = curobj.values;
-                  if(curvals){
-                     // assume for the moment curvals is an array with length 1
-                     var curvalobj = curvals[0];
-                     var curval_meta = curvalobj.metadata;
-                     // do the meta data conversion manually                  
-                     newobj.links = curval_meta["Links"];
-                     newobj.etag = curval_meta['X-Riak-VTag'];
-                     newobj.lastModified = curval_meta["X-Riak-Last-Modified"];
-                     newobj.meta = curval_meta["X-Riak-Meta"];
-                     newobj.timestamp = metadata.headers["date"];
-                     newobj.contentType = metadata.headers["content-type"];
-                     var curval_data = JSON.parse(curvalobj.data); 
-                     if(curval_data){
-                        // copy data if it is proper json
-                        for(var key2 in curval_data){
-                           newobj[key2] = curval_data[key2];
-                        }                                             
-                     }
-                     else {
-                        // just push it as text data
-                        newobj.data = curvalobj.data;
-                     }
-                  }
-                  //sys.puts("About to add to ret: " + sys.inspect(newobj));
+                  var newobj = me._createObjectFromFetchData(recs[i],metadata);
                   ret.push(newobj);
                } // end for
             }
@@ -160,12 +290,17 @@ global.OrionStore = SC.Object.extend({
                //newobj.binary = curvalobj.data;
             }
          } 
-         //sys.puts("About to call fetchResult callback with: " + sys.inspect(ret));
-         callback(ret);
+         ret = storeRequest.conditions? me._filterRecordsByQuery(ret,storeRequest): ret;
+         if(storeRequest.relations && (storeRequest.relations instanceof Array)){
+            for(var rel_i=0,len=storeRequest.relations.length;rel_i<len;rel_i++){
+               me._fetchRelation(storeRequest,rel_i,ret,callback);
+            }
+         }
+         callback({ recordResult: ret }); 
       }; // end return function
    },
    
-   _createRiakFetchOnError: function(callback){
+   _createRiakFetchOnError: function(storeRequest,callback){
       // function to create a callback function when Riak encounters an error during a query 
       return function(recs,metadata){
          callback(null);
@@ -230,7 +365,7 @@ global.OrionStore = SC.Object.extend({
          newRec.key = metadata.key;
          newRec.contentType = metadata.type;
          callback(newRec);
-      }
+      };
    },
    
    updateRecord: function(resource,data,clientId,callback){
@@ -254,7 +389,7 @@ global.OrionStore = SC.Object.extend({
          returndata.key = resource.key;
          returndata.date = metadata.date;
          callback(data);
-      }
+      };
    },
    
    deleteRecord: function(resource,clientId,callback){

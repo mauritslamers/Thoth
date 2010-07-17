@@ -111,9 +111,26 @@ global.OrionSession = SC.Object.extend({
          this._knownUsers.push(user);        
       }
       else { // 
-         this._loggedInUsers[user].sessionKeys.push(newSessionKey);
-         this._loggedInUsers[user].lastSeen.push(new Date().getTime());
-         this._loggedInUsers[user].sessionData.push(OrionUserCache.create());
+         // if for some strange reason something has gone wrong during the creation of the previous object
+         // make sure the stuff works anyway...
+         if(this._loggedInUsers[user].sessionKeys instanceof Array){
+            this._loggedInUsers[user].sessionKeys.push(newSessionKey);
+         } 
+         else {
+            this._loggedInUsers[user].sessionKeys = [newSessionKey]; 
+         }
+         if(this._loggedInUsers[user].lastSeen instanceof Array){
+            this._loggedInUsers[user].lastSeen.push(new Date().getTime());            
+         }
+         else {
+            this._loggedInUsers[user].lastSeen = [new Date().getTime()];
+         }
+         if(this._loggedInUsers[user].sessionData instanceof Array){
+            this._loggedInUsers[user].sessionData.push(OrionUserCache.create());            
+         }
+         else {
+            this._loggedInUsers[user].sessionData = [OrionUserCache.create()];
+         }
       }
       var sessionName = this.sessionName;
       var expDate = new Date();
