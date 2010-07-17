@@ -215,23 +215,26 @@ global.OrionStore = SC.Object.extend({
       var relationRelationKey = [relationBucket,"key"].join("_"); // generate the key name of the opposite model
       var junctionRecsRequest = this.db.map({source: 'function(value){ return [value];}'}).run(junctionBucket); // this returns a function
       junctionRecsRequest(function(junctionRecs,meta){ // success
-         var curquery, currec, curkey, curConditions = relationKey + " = {relKey}", curParameters;
+         var curquery, currec, curkey, curConditions = modelRelationKey + " = {relKey}", curParameters;
          var retkeys = [], retdata = {};
          // we need to go through all records and all junctionRecs to create a set of relations
          var i,j, recordslen, junctreclen; // indexes
          var curjunctrec;
-         for(i=0,len=records.length;i<len;i++){
+         for(i=0,recordslen=records.length;i<recordslen;i++){
             currec = records[i];
             curkey = currec.key;
             curParameters = { relKey: curkey };
-            curquery = SC.Query.create({ conditions: curConditions, parameters: curParamters});
+            curquery = SC.Query.create({ conditions: curConditions, parameters: curParameters});
             curquery.parse();
             var data = [];
             // query set up, now start parsing the records
             for(j=0,junctreclen=junctionRecs.length;j<junctreclen;j++){
-               curjunctrec = junctionRecs[j].values[0]; // assume values has only one element
+               curjunctrec = JSON.parse(junctionRecs[j].values[0].data); // assume values has only one element
+               sys.puts("while doing relations comparing curjunctrec: " + JSON.stringify(curjunctrec));
+               sys.puts("query conditions: " + curquery.conditions + " and parameters: " + JSON.stringify(curquery.parameters));
                if(curquery.contains(curjunctrec)){ 
                   data.push(curjunctrec[relationRelationKey]);
+                  sys.puts("record added!");
                }
             }
             retkeys.push(curkey);
