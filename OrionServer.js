@@ -471,7 +471,7 @@ global.OrionServer = SC.Object.extend({
             // send off the data
             callback({ 
                fetchResult: { 
-                  bucket: bucket, 
+                  bucket: fetchinfo.bucket, 
                   records: data.recordResult, 
                   returnData: message.returnData
                }
@@ -484,39 +484,6 @@ global.OrionServer = SC.Object.extend({
                }
             });
          }
-         var records = (data instanceof Array)? data: [data]; // better safe than sorry
-         var bucket = fetchinfo.bucket;
-         var conditions = fetchinfo.conditions;
-         var parameters = fetchinfo.parameters;
-         // we should also save the query, in case we have one... 
-         if(conditions){
-            // first filter the records given by riak 
-            // it may be useful to move the filtering by query to the store in the future
-            records = me.filterRecordByQuery(records,conditions,parameters);            
-            // now push the records to the clients session
-            me.sessionModule.storeRecords(client.user,client.sessionKey,records);
-            // we have a query, store it..
-            me.sessionModule.storeQuery(client.user,client.sessionKey,bucket,conditions,parameters);
-         }
-         else {
-            // we don't have a query, but it would still be nice to update clients
-            // so create one that matches 
-            me.sessionModule.storeQuery(client.user,client.sessionKey,bucket);
-         }
-         // should we take a look at relations?
-         if(fetchinfo.relations && (fetchinfo.relations instanceof Array)){
-            for(var i=0,len=fetchinfo.relations.length;i<len;i++){
-               me.handleFetchRelation(fetchinfo.relations[i], records, message, client, callback);
-            }
-         }
-         // next do the callback
-         callback({ 
-            fetchResult: { 
-               bucket: bucket, 
-               records: records, 
-               returnData: message.returnData
-            }
-         });
       });
    },
    
