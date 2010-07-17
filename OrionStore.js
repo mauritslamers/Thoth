@@ -94,6 +94,7 @@ global.OrionStore = SC.Object.extend({
       /*
        the storeRequest is an object with the following layout:
        { bucket: '', 
+         key: '',
          conditions: '', 
          parameters: {}, 
          relations: [ 
@@ -106,10 +107,13 @@ global.OrionStore = SC.Object.extend({
       // first the normal request is processed
       // then relations are being resolved one by one
       // the given callback is called for the normal request, and once for every relation.
+      // The resolving of the relations is done in the callback as we need the keys of the records
       
       // this function expects the callback to be a generated function and have the servers request and response objects
       // included in it as a closure (is it called that way?), as well as some extra data as session info
       //this should also include a client id...
+      
+      // fetch doesn't check the key in the storeRequest, as that is where refreshRecord is for
       var bucket = storeRequest.bucket;
       if(bucket && callback){
          var ret = this.db.map({source: 'function(value){ return [value];}'}).run(bucket); // this returns a function
@@ -191,31 +195,37 @@ global.OrionStore = SC.Object.extend({
          return ret;         
       }
    },
-  /*
-  - a normal fetchResult
-  - { fetchResult: { relationSet: [ { bucket: '', keys: [''], propertyName: '', data: {} } ], returnData: { requestKey: ''}}} 
-     where:
+   /*
+   - a normal fetchResult
+   - { fetchResult: { relationSet: [ { bucket: '', keys: [''], propertyName: '', data: {} } ], returnData: { requestKey: ''}}} 
+      where:
         - bucket is the bucket the request belongs to
         - keys is the set of keys for which the relation data is contained in data
         - propertyname is the name of the toOne or toMany property
         - data is the set of keys describing the relation, associative array by key
         - requestKey is the key of the original request
-  */ 
-   _fetchRelation: function(storeRequest,relationIndex,records,callback){
-      // this function is different from the normal fetch in the sense that it only needs to 
-      // get the keys of the relations... Unsure how much extra information the toMany arrays in 
-      // SC can handle
+      */ 
+   _getJunctionInfo: function(model,relation){
+      // return an object with all generated information about the relation:
+      // { modelBucket: '', relationBucket: '', junctionBucket: '', modelRelationKey: '', relationRelationKey: ''}
+      return {
+        modelBucket: model,
+        relationBucket: relation,
+        junctionBucket: [model,relation].sort().join("_"),
+        modelRelationKey: [model,"key"].join("_"),
+        relationRelationKey: [relation,"key"].join("_")
+      };
+   },
+   
+   _createFetchRelationOnSuccess: function(relation,junctionInfo,records,callback){
+      // function to create a callback for every fetch of a relation
+      // this was a lambda function first inside _fetchRelation, but as refreshRecord should
+      // also be able to use this, it has become a function creator
       
-      var modelBucket = storeRequest.bucket;
-      var relation = storeRequest.relations[relationIndex];
-      var relationBucket = relation.bucket;
-      // build junctionBucketname, by taking model and relation,sort them alphabetically and join them with _
-      var junctionBucket = [modelBucket,relationBucket].sort().join("_");
-      var modelRelationKey = [modelBucket,"key"].join("_"); // generate the key name inside the junction table
-      var relationRelationKey = [relationBucket,"key"].join("_"); // generate the key name of the opposite model
-      var junctionRecsRequest = this.db.map({source: 'function(value){ return [value];}'}).run(junctionBucket); // this returns a function
-      junctionRecsRequest(function(junctionRecs,meta){ // success
-         var curquery, currec, curkey, curConditions = modelRelationKey + " = {relKey}", curParameters;
+      //make sure records is an array
+      records = (records instanceof Array)? records: [records];
+      return function(junctionRecs,meta){ // success callback
+         var curquery, currec, curkey, curConditions = junctionInfo.modelRelationKey + " = {relKey}", curParameters;
          var retkeys = [], retdata = {};
          // we need to go through all records and all junctionRecs to create a set of relations
          var i,j, recordslen, junctreclen; // indexes
@@ -230,10 +240,8 @@ global.OrionStore = SC.Object.extend({
             // query set up, now start parsing the records
             for(j=0,junctreclen=junctionRecs.length;j<junctreclen;j++){
                curjunctrec = JSON.parse(junctionRecs[j].values[0].data); // assume values has only one element
-               sys.puts("while doing relations comparing curjunctrec: " + JSON.stringify(curjunctrec));
-               sys.puts("query conditions: " + curquery.conditions + " and parameters: " + JSON.stringify(curquery.parameters));
                if(curquery.contains(curjunctrec)){ 
-                  data.push(curjunctrec[relationRelationKey]);
+                  data.push(curjunctrec[junctionInfo.relationRelationKey]);
                   sys.puts("record added!");
                }
             }
@@ -242,28 +250,43 @@ global.OrionStore = SC.Object.extend({
          }
          // parsed all records and all junction info
          // now call the callback with the info
-         var relSet = { bucket: modelBucket, keys: retkeys, propertyName: relation.propertyName, data: retdata };
+         var relSet = { bucket: junctionInfo.modelBucket, keys: retkeys, propertyName: relation.propertyName, data: retdata };
          callback({ relationSet: relSet });
-      }, 
-      function(junctionRecs,meta){ // some error, assemble an empty relation set
-         var keys = [], data = {}, currec, curkey;
-         for(var i=0,len=records.length;i<len;i++){
-            currec = records[i];
-            curkey = currec.key;
-            keys.push(curkey);
-            data[curkey] = [];
-         }
-         var curRelSet = { 
-            bucket: modelBucket, 
-            keys: keys, 
-            propertyName: relation.propertyName,
-            data: data
-         };
-         callback({ relationSet: curRelSet });
-      });
-            
+      };
+   },
+  
+   _fetchRelation: function(storeRequest,relationIndex,records,callback){
+      // this function is different from the normal fetch in the sense that it only needs to 
+      // get the keys of the relations... Unsure how much extra information the toMany arrays in 
+      // SC can handle
       
-
+      var modelBucket = storeRequest.bucket;
+      var relation = storeRequest.relations[relationIndex];
+      var relationBucket = relation.bucket;
+      var junctionInfo = this._getJunctionInfo(modelBucket,relationBucket);
+      // build junctionBucketname, by taking model and relation,sort them alphabetically and join them with _
+      var junctionRecsRequest = this.db.map({
+         source: 'function(value){ return [value];}'
+         }).run(junctionInfo.junctionBucket); // this returns a function        
+      junctionRecsRequest( // call the action with the following callbacks:
+         this._createFetchRelationOnSuccess(relation,junctionInfo,records,callback), 
+         function(junctionRecs,meta){ // some error, assemble an empty relation set
+            var keys = [], data = {}, currec, curkey;
+            for(var i=0,len=records.length;i<len;i++){
+               currec = records[i];
+               curkey = currec.key;
+               keys.push(curkey);
+               data[curkey] = [];
+            }
+            var curRelSet = { 
+               bucket: modelBucket, 
+               keys: keys, 
+               propertyName: relation.propertyName,
+               data: data
+            };
+            callback({ relationSet: curRelSet });
+         }
+      );
    },
    
    _createRiakFetchOnSuccess: function(storeRequest,callback){
@@ -310,13 +333,38 @@ global.OrionStore = SC.Object.extend({
       };
    },
    
-   refreshRecord: function(resource,clientId,callback){
+   /*
+   the storeRequest is an object with the following layout:
+   { bucket: '', 
+     key: '',
+     conditions: '', 
+     parameters: {}, 
+     relations: [ 
+        { bucket: '', type: 'toOne', propertyName: '' }, 
+        { bucket: '', type: 'toMany', propertyName: ''} 
+     ] 
+   }
+   */
+   
+   refreshRecord: function(storeRequest,clientId,callback){
       // function to retrieve a record using the bucket and key on the resource object
       // the refreshRecord is a different kind of request to Riak... It can of course be done using a mapred call
       // but a direct call is much faster and essentially returns the same information
       var opts = {clientId: clientId};
-      var getRec = this.db.get(resource.bucket, resource.key, opts);
-      getRec(this._createRefreshRecordCallback(resource,callback));
+      var getRec = this.db.get(storeRequest.bucket, storeRequest.key, opts);
+      getRec(this._createRefreshRecordCallback(storeRequest,callback));
+      // in the case of refresh we can do the relations in main function as the key won't be changed
+      if(storeRequest.relations && (storeRequest.relations instanceof Array)){
+         for(var i=0,len=storeRequest.relations.length;i<len;i++){
+            this._fetchRelation(storeRequest,i,{bucket:storeRequest.bucket, key:storeRequest.key},
+               function(result){ // callback
+                  // the refresh result is the same format as the relation fetchResult.
+                  // It is assumed the client will use the same function for handling the relation
+                  // stuff for fetch and refresh. If not, and a different object format is needed, change it here!
+                  callback({ refreshResult: result}); // let the client side figure out the array stuf
+               });
+         }
+      }
    },
    
    _createRefreshRecordCallback: function(resource,callback){

@@ -308,8 +308,9 @@ global.OrionServer = SC.Object.extend({
    start: function(){
       sys.puts('Starting OrionServer');
       // load the models, push the resource names inside the model cache
-      this._loadModels();
-      sys.puts('DB Models loaded...');
+      // commented out as they are not used atm
+      //this._loadModels();
+      //sys.puts('DB Models loaded...');
       this._startServer();
       // start the server
 
@@ -437,8 +438,9 @@ global.OrionServer = SC.Object.extend({
       /*
       the storeRequest is an object with the following layout:
       { bucket: '', 
-        conditions: '', 
-        parameters: {}, 
+        key: '', // not used by fetch
+        conditions: '', // not used by the individual record functions (create,refresh,update,delete)
+        parameters: {}, // not used by the individual record functions (create,refresh,update,delete)
         relations: [ 
            { bucket: '', type: 'toOne', propertyName: '' }, 
            { bucket: '', type: 'toMany', propertyName: ''} 
@@ -495,12 +497,16 @@ global.OrionServer = SC.Object.extend({
       // purpose in the future
       sys.puts("OrionServer onRefresh called");
       var refreshRec = message.refreshRecord;
-      var bucket = refreshRec.bucket;
-      var key = refreshRec.key;
+      var storeRequest = { 
+         bucket: refreshRec.bucket, 
+         key: refreshRec.key,
+         relations: refreshRec.relations
+      };
+      
       var me = this;
       var clientId = [client.user,client.sessionKey].join("_");
-      if(bucket && key){
-         this.store.refreshRecord({bucket: bucket, key: key},clientId,function(val){ 
+      if(refreshRec.bucket && refreshRec.key){
+         this.store.refreshRecord(storeRequest,clientId,function(val){ 
             callback(val);
          });
       }
