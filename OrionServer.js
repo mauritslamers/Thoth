@@ -634,15 +634,18 @@ global.OrionServer = SC.Object.extend({
    // client as is the concept of socket-io...
    // so there should be only one listener...
    
-   
    onCreate: function(message,client,callback){
       var createRec = message.createRecord;
-      var bucket = createRec.bucket;
-      var data = createRec.record;
+      var storeRequest = { 
+         bucket: createRec.bucket, 
+         key: createRec.key,
+         data: createRec.record,
+         relations: createRec.relations
+      };
       var clientId = [client.user,client.sessionKey].join("_");
       var me = this;
-      if(bucket && clientId){
-         this.store.createRecord({bucket: bucket},data,clientId,
+      if(storeRequest.bucket && clientId){
+         this.store.createRecord(storeRequest,data,clientId,
             function(val){
                // first update the original client and then update the others
                callback({createRecordResult: {record: val, returnData: createRec.returnData}});

@@ -340,8 +340,8 @@ global.OrionStore = SC.Object.extend({
      conditions: '', 
      parameters: {}, 
      relations: [ 
-        { bucket: '', type: 'toOne', propertyName: '' }, 
-        { bucket: '', type: 'toMany', propertyName: ''} 
+        { bucket: '', type: 'toOne', propertyName: '', keys: [] }, 
+        { bucket: '', type: 'toMany', propertyName: '', keys: [] } 
      ] 
    }
    */
@@ -354,15 +354,15 @@ global.OrionStore = SC.Object.extend({
       var getRec = this.db.get(storeRequest.bucket, storeRequest.key, opts);
       getRec(this._createRefreshRecordCallback(storeRequest,callback));
       // in the case of refresh we can do the relations in main function as the key won't be changed
+      var func = function(result){ // callback
+         // the refresh result is the same format as the relation fetchResult.
+         // It is assumed the client will use the same function for handling the relation
+         // stuff for fetch and refresh. If not, and a different object format is needed, change it here!
+         callback({ refreshResult: result}); // let the client side figure out the array stuf
+      };
       if(storeRequest.relations && (storeRequest.relations instanceof Array)){
          for(var i=0,len=storeRequest.relations.length;i<len;i++){
-            this._fetchRelation(storeRequest,i,{bucket:storeRequest.bucket, key:storeRequest.key},
-               function(result){ // callback
-                  // the refresh result is the same format as the relation fetchResult.
-                  // It is assumed the client will use the same function for handling the relation
-                  // stuff for fetch and refresh. If not, and a different object format is needed, change it here!
-                  callback({ refreshResult: result}); // let the client side figure out the array stuf
-               });
+            this._fetchRelation(storeRequest,i,{bucket:storeRequest.bucket, key:storeRequest.key},func);
          }
       }
    },
@@ -391,21 +391,56 @@ global.OrionStore = SC.Object.extend({
       };
    },
    
-   createRecord: function(resource,data,clientId,callback){
+   /*
+      how to do relations in create, update and delete?
+      we have to adjust the standard requests a bit:
+      
+      the create, update and delete requests (copied from above):
+      
+      { createRecord: { bucket: '', record: {}, returnData: {} }}
+      { updateRecord: { bucket: '', key: '', record: {}, returnData: {} }}
+      { deleteRecord: { bucket: '', key: '', returnData: {} }}
+      
+      all request can have a relations property, which is an array of relation objects:
+      
+      relations: [ { bucket: '', type: 'toOne', propertyName: '', keys: [] } ]
+      
+      the main problem however is how to distribute it...
+      Maybe it is best to just return the relations and then have the server create them...
+      or generate the relations and send the record afterwards...
+      
+   */
+   
+   createRecord: function(storeRequest,clientId,callback){
       // we need a client id to identify the actions for Riak, we would like a riak bucket/key combination 
       // this information could be retrieved from the user session, it may even be the session key...
       // or even better a username + sessionkey to keep error messages readable
-      var bucket=resource.bucket;
+      var bucket=storeRequest.bucket;
+      var noKey = null;
       if(bucket){
-         var createRec = this.db.save(bucket,null,data,{clientId: clientId});
-         createRec(this._createCreateRecordCallback(resource,data,callback)); 
+         var createRec = this.db.save(bucket,noKey,storeRequest.data,{clientId: clientId});
+         createRec(this._createCreateRecordCallback(storeRequest,data,callback)); 
          // I couldn't find why there seems to be no error callback. so atm I wrote none... 
          // but there should be a kind of error callback...
       }
       else sys.puts("OrionStore received a createRecord request in the wrong format... Cannot create");
    },
    
-   _createCreateRecordCallback: function(resource,data,callback){
+   /* Junction info:
+   { modelBucket: '', relationBucket: '', junctionBucket: '', modelRelationKey: '', relationRelationKey: '' }
+   */
+   
+   _createJunctionObject: function(modelKeyValue, relationKeyValue, junctionInfo){
+     // function to create an object to store inside a junction table/ bucket
+     var ret = {};
+     ret[junctionInfo.modelRelationKey] = modelKeyValue;
+     ret[junctionInfo.relationRelationKey] = relationKeyValue;
+     return ret; 
+   },
+   
+   _createCreateRecordCallback: function(storeRequest,data,callback){
+      // relations stuff needs to be done in the Riak callback as we don't know the key before
+      var me = this;
       return function(recs,metadata){
          // recs is empty, metadata already contains the key without having it to pry out
          // of the location header, thanks riak-node!
@@ -415,6 +450,26 @@ global.OrionStore = SC.Object.extend({
          newRec.bucket = resource.bucket;
          newRec.key = metadata.key;
          newRec.contentType = metadata.type;
+         // now we have to create the relations:
+         var relations = storeRequest.relations;
+         var currel, junctionInfo, relationKeys, relationRec, createRelReq;
+         var noKey = null;
+         if(relations && (relations instanceof Array)){
+            for(var i=0,len=relations.length;i<len;i++){
+               currel = relations[i];
+               junctionInfo = me._getJunctionInfo(currel.modelBucket,currel.relationBucket);
+               relationKeys = currel.keys;
+               if(relationKeys && (relationKeys instanceof Array)){
+                  // do a create request for every key 
+                  for(var j=0,keylen=relationKeys.length;j<keylen;j++){
+                     relationRec = me._createJunctionObject(newRec.key,relationKeys[j],junctionInfo);
+                     createRelReq = this.db.save(junctionInfo.junctionBucket,noKey,relationRec); // use standard callback                     
+                  }
+               }
+               // now add the relation data to the new rec
+               newRec[currel.propertyName] = relationKeys;
+            }
+         }
          callback(newRec);
       };
    },
