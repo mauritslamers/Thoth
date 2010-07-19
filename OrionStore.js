@@ -515,6 +515,7 @@ global.OrionStore = SC.Object.extend({
          }).run(junctionInfo.junctionBucket); // this returns a function        
          // part of this functionality could be shared...
       var me = this;
+      var storeOpts = { clientId: storeRequest.clientId };
       // define the process function, which is the callback for the junction Records fetch
       var process = function(recs,meta){
          var recdata, tmprec, curModelKey, aryindex,i,j,recLen, curRelRelKey;
@@ -532,7 +533,7 @@ global.OrionStore = SC.Object.extend({
                if(aryindex == -1) {
                   // delete this junctiontable record as it doesn't exist in the relation data
                   // make del function and call immediately
-                  this.db.remove(junctionInfo.junctionBucket,recs[i].key,{ clientId: storeRequest.clientId })(); 
+                  this.db.remove(junctionInfo.junctionBucket,recs[i].key,storeOpts)(); 
                }
                else {
                   // it does exist, remove the key from the relationKeys array
@@ -547,7 +548,7 @@ global.OrionStore = SC.Object.extend({
             // there are relations to create
             for(i=0;i<numrelations;i++){ // we can safely re-use i
                relationRec = me._createJunctionObject(storeRequest.key,relationKeys[i],junctionInfo);
-               this.db.save(junctionInfo.junctionBucket,noKey,relationRec)(); // use standard callback                                   
+               this.db.save(junctionInfo.junctionBucket,noKey,relationRec,storeOpts)(); // use standard callback                                   
             }
          }
       };
