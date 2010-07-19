@@ -645,7 +645,7 @@ global.OrionServer = SC.Object.extend({
       var clientId = [client.user,client.sessionKey].join("_");
       var me = this;
       if(storeRequest.bucket && clientId){
-         this.store.createRecord(storeRequest,data,clientId,
+         this.store.createRecord(storeRequest,clientId,
             function(val){
                // first update the original client and then update the others
                callback({createRecordResult: {record: val, returnData: createRec.returnData}});
@@ -657,13 +657,16 @@ global.OrionServer = SC.Object.extend({
    
    onUpdate: function(message,client,callback){
      var updateRec = message.updateRecord;
-     var bucket = updateRec.bucket;
-     var key = updateRec.key;
-     var data = updateRec.record;
+     var storeRequest = { 
+        bucket: updateRec.bucket, 
+        key: updateRec.key,
+        recordData: updateRec.record,
+        relations: updateRec.relations
+     };
      var clientId = [client.user,client.sessionKey].join("_");
      var me = this;
-     if(bucket && key && clientId){
-        this.store.updateRecord({bucket: bucket, key: key}, data, clientId,
+     if(storeRequest.bucket && storeRequest.key && clientId){
+        this.store.updateRecord(storeRequest,clientId,
            function(val){
               callback({updateRecordResult: {record: val, returnData: updateRec.returnData}}); // not entirely sure this obj layout is correct
               me.distributeChanges(val,"update",client.user,client.sessionKey);

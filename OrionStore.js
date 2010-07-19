@@ -441,7 +441,7 @@ global.OrionStore = SC.Object.extend({
    _createCreateRecordCallback: function(storeRequest, clientId, callback){
       // relations stuff needs to be done in the Riak callback as we don't know the key before
       var me = this;
-      var data = storeRequest.data;
+      var data = storeRequest.recordData;
       return function(recs,metadata){
          // recs is empty, metadata already contains the key without having it to pry out
          // of the location header, thanks riak-node!
@@ -480,13 +480,13 @@ global.OrionStore = SC.Object.extend({
    // into them... This would mean that we'd had to split them server side...
    // anyway, in that case, the separation should be performed by the client
    
-   updateRecord: function(storeRequest,data,clientId,callback){
+   updateRecord: function(storeRequest,clientId,callback){
       // we need a client id to identify the actions for Riak, we would like a riak bucket/key combination
       var bucket= storeRequest.bucket;
       var key = storeRequest.key;
       var opts = clientId? { clientId: clientId }: null;
-      if(bucket && key && opts){
-         var updateRec = this.db.save(bucket,key,data,opts);
+      if(bucket && key && storeRequest.recordData && opts){ // it is possible to send only relation updates this way
+         var updateRec = this.db.save(bucket,key,storeRequest.recordData,opts);
          updateRec(this._createUpdateRecordCallback(storeRequest,storeRequest.recordData,callback));
       }
       // we already know the key of this record, so we can start updating the relations in the main function
@@ -556,13 +556,13 @@ global.OrionStore = SC.Object.extend({
    },
    
    // we may need to include some other nice things, like json detection...?
-   _createUpdateRecordCallback: function(resource,data,callback){
+   _createUpdateRecordCallback: function(storeRequest,data,callback){
       return function(recs,metadata){
          // update doesn't return the updated record, so we need to have the original data
          // we also need to add few items, like bucket, key etc
-         var returndata = data;
-         returndata.bucket = resource.bucket;
-         returndata.key = resource.key;
+         var returndata = data || {};
+         returndata.bucket = storeRequest.bucket;
+         returndata.key = storeRequest.key;
          returndata.date = metadata.date;
          callback(data);
       };
