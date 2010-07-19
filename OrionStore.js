@@ -175,11 +175,11 @@ global.OrionStore = SC.Object.extend({
       return newobj;      
    },
    
-   _filterRecordsByQuery: function(records,storeRequest){
+   _filterRecordsByQuery: function(records,conditions,parameters){
       // function to filter a set of records to the conditions and parameters given
       // it creates a temporary query object
       if(records){
-         var query = SC.Query.create({conditions: storeRequest.conditions, parameters: storeRequest.parameters});
+         var query = SC.Query.create({conditions: conditions, parameters: parameters});
          query.parse();
          var currec, ret = [];
          for(var i=0,len=records.length;i<len;i++){
@@ -242,7 +242,7 @@ global.OrionStore = SC.Object.extend({
                curjunctrec = JSON.parse(junctionRecs[j].values[0].data); // assume values has only one element
                if(curquery.contains(curjunctrec)){ 
                   data.push(curjunctrec[junctionInfo.relationRelationKey]);
-                  sys.puts("record added!");
+                  //sys.puts("record added!");
                }
             }
             retkeys.push(curkey);
@@ -316,7 +316,7 @@ global.OrionStore = SC.Object.extend({
                //newobj.binary = curvalobj.data;
             }
          } 
-         ret = storeRequest.conditions? me._filterRecordsByQuery(ret,storeRequest): ret;
+         ret = storeRequest.conditions? me._filterRecordsByQuery(ret,storeRequest.conditions,storeRequest.parameters): ret;
          if(storeRequest.relations && (storeRequest.relations instanceof Array)){
             for(var rel_i=0,len=storeRequest.relations.length;rel_i<len;rel_i++){
                me._fetchRelation(storeRequest,rel_i,ret,callback);
@@ -339,6 +339,7 @@ global.OrionStore = SC.Object.extend({
      key: '',
      conditions: '', 
      parameters: {}, 
+     recordData: {}
      relations: [ 
         { bucket: '', type: 'toOne', propertyName: '', keys: [] }, 
         { bucket: '', type: 'toMany', propertyName: '', keys: [] } 
@@ -415,11 +416,10 @@ global.OrionStore = SC.Object.extend({
       // we need a client id to identify the actions for Riak, we would like a riak bucket/key combination 
       // this information could be retrieved from the user session, it may even be the session key...
       // or even better a username + sessionkey to keep error messages readable
-      var bucket=storeRequest.bucket;
       var noKey = null;
-      if(bucket){
-         var createRec = this.db.save(bucket,noKey,storeRequest.data,{clientId: clientId});
-         createRec(this._createCreateRecordCallback(storeRequest,data,callback)); 
+      if(storeRequest.bucket && (storeRequest.recordData !== undefined)){
+         var createRec = this.db.save(storeRequest.bucket,noKey,storeRequest.recordData,{clientId: clientId});
+         createRec(this._createCreateRecordCallback(storeRequest,callback));  // data is in the storeRequest
          // I couldn't find why there seems to be no error callback. so atm I wrote none... 
          // but there should be a kind of error callback...
       }
@@ -438,16 +438,17 @@ global.OrionStore = SC.Object.extend({
      return ret; 
    },
    
-   _createCreateRecordCallback: function(storeRequest,data,callback){
+   _createCreateRecordCallback: function(storeRequest,callback){
       // relations stuff needs to be done in the Riak callback as we don't know the key before
       var me = this;
+      var data = storeRequest.data;
       return function(recs,metadata){
          // recs is empty, metadata already contains the key without having it to pry out
          // of the location header, thanks riak-node!
          // so, what we do is return the entire record and include some extra stuff
          //sys.puts("store create record metadata: " + JSON.stringify(metadata));
          var newRec = data;
-         newRec.bucket = resource.bucket;
+         newRec.bucket = storeRequest.bucket;
          newRec.key = metadata.key;
          newRec.contentType = metadata.type;
          // now we have to create the relations:
@@ -463,7 +464,7 @@ global.OrionStore = SC.Object.extend({
                   // do a create request for every key 
                   for(var j=0,keylen=relationKeys.length;j<keylen;j++){
                      relationRec = me._createJunctionObject(newRec.key,relationKeys[j],junctionInfo);
-                     createRelReq = this.db.save(junctionInfo.junctionBucket,noKey,relationRec); // use standard callback                     
+                     this.db.save(junctionInfo.junctionBucket,noKey,relationRec)(); // use standard callback                     
                   }
                }
                // now add the relation data to the new rec
@@ -474,15 +475,83 @@ global.OrionStore = SC.Object.extend({
       };
    },
    
-   updateRecord: function(resource,data,clientId,callback){
+   // it may well be that later the data of the relations are not separate from the recordData but integrated
+   // into them... This would mean that we'd had to split them server side...
+   // anyway, in that case, the separation should be performed by the client
+   
+   updateRecord: function(storeRequest,data,clientId,callback){
       // we need a client id to identify the actions for Riak, we would like a riak bucket/key combination
-      var bucket=resource.bucket;
-      var key = resource.key;
+      var bucket= storeRequest.bucket;
+      var key = storeRequest.key;
       var opts = clientId? { clientId: clientId }: null;
       if(bucket && key && opts){
          var updateRec = this.db.save(bucket,key,data,opts);
-         updateRec(this._createUpdateRecordCallback(resource,data,callback));
+         updateRec(this._createUpdateRecordCallback(storeRequest,storeRequest.recordData,callback));
       }
+      // we already know the key of this record, so we can start updating the relations in the main function
+      if(storeRequest.relations && (storeRequest.relations instanceof Array)){
+         // walk through every relation and check whether the relations still match the record data
+         // this would mean: get all relation records for the master record, 
+         // filter out the ones that exist, if there is a relation in the master record that is not in 
+         // the db records, create it. if there is a relation in the db that doesn't match the record data
+         // delete the relation
+         var relations = storeRequest.relations, currel;
+         for(var i=0,len=relations.length;i<len;i++){
+            currel = relations[i];
+            this._updateRelation(storeRequest,currel);
+         }
+      }      
+   },
+   
+   _updateRelation: function(storeRequest,relation){
+      // for this relation get all the relation records, 
+      // compare the received records to the relation data in the storeRequest,
+      // filter out the corresponding records 
+      // create the records that exist only in the storeRequest relation data
+      // delete the records that exist only in the db
+      var junctionInfo = this._getJunctionInfo(storeRequest.bucket,relation.bucket);
+      var junctionRecsRequest = this.db.map({
+         source: 'function(value){ return [value];}'
+         }).run(junctionInfo.junctionBucket); // this returns a function        
+         // part of this functionality could be shared...
+      var me = this;
+      // define the process function, which is the callback for the junction Records fetch
+      var process = function(recs,meta){
+         var recdata, tmprec, curModelKey, aryindex,i,j,recLen, curRelRelKey;
+         var relationKeys = relation.keys.copy(); // make sure we don't touch the original         
+         for(i=0,recLen=recs.length;i<recLen;i++){
+            tmprec = recs[i].values[0].data;
+            curModelKey = tmprec[junctionInfo.modelRelationKey];
+            if(curModelKey == storeRequest.key){
+               // the current record fits the key of the original update request
+               // now check the 
+               // this record can either match the existing situation (no change to that relation)
+               // in that case: remove it from the relationKeys array
+               curRelRelKey = tmprec[junctionInfo.relationRelationKey];
+               aryindex = relationKeys.indexOf(curRelRelKey);
+               if(aryindex == -1) {
+                  // delete this junctiontable record as it doesn't exist in the relation data
+                  // make del function and call immediately
+                  this.db.remove(junctionInfo.junctionBucket,recs[i].key,{ clientId: storeRequest.clientId })(); 
+               }
+               else {
+                  // it does exist, remove the key from the relationKeys array
+                  relationKeys.removeAt(aryIndex);
+               }
+            }
+         }
+         // now check whether any relations have been left over
+         var numrelations = relationKeys.length;
+         var relationRec;
+         if(numrelations>0){
+            // there are relations to create
+            for(i=0;i<numrelations;i++){ // we can safely re-use i
+               relationRec = me._createJunctionObject(storeRequest.key,relationKeys[i],junctionInfo);
+               this.db.save(junctionInfo.junctionBucket,noKey,relationRec)(); // use standard callback                                   
+            }
+         }
+      };
+      junctionRecsRequest(process); // start processing the relations
    },
    
    // we may need to include some other nice things, like json detection...?
@@ -498,10 +567,10 @@ global.OrionStore = SC.Object.extend({
       };
    },
    
-   deleteRecord: function(resource,clientId,callback){
+   deleteRecord: function(storeRequest,clientId,callback){
       // we need a client id to identify the actions for Riak, we would like a riak bucket/key combination
-      var bucket = resource.bucket,
-          key = resource.key,
+      var bucket = storeRequest.bucket,
+          key = storeRequest.key,
           opts = { clientId: clientId};
       var delRec = this.db.remove(bucket,key,opts);
       delRec(this._createDeleteRecordCallback(callback));

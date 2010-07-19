@@ -639,7 +639,7 @@ global.OrionServer = SC.Object.extend({
       var storeRequest = { 
          bucket: createRec.bucket, 
          key: createRec.key,
-         data: createRec.record,
+         recordData: createRec.record,
          relations: createRec.relations
       };
       var clientId = [client.user,client.sessionKey].join("_");
