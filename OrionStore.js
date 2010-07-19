@@ -518,7 +518,7 @@ global.OrionStore = SC.Object.extend({
       var storeOpts = { clientId: storeRequest.clientId };
       // define the process function, which is the callback for the junction Records fetch
       var process = function(recs,meta){
-         var recdata, tmprec, curModelKey, aryindex,i,j,recLen, curRelRelKey;
+         var recdata, tmprec, curModelKey, aryIndex,i,j,recLen, curRelRelKey;
          var relationKeys = relation.keys.copy(); // make sure we don't touch the original         
          for(i=0,recLen=recs.length;i<recLen;i++){
             tmprec = recs[i].values[0].data;
@@ -529,8 +529,8 @@ global.OrionStore = SC.Object.extend({
                // this record can either match the existing situation (no change to that relation)
                // in that case: remove it from the relationKeys array
                curRelRelKey = tmprec[junctionInfo.relationRelationKey];
-               aryindex = relationKeys.indexOf(curRelRelKey);
-               if(aryindex == -1) {
+               aryIndex = relationKeys.indexOf(curRelRelKey);
+               if(aryIndex == -1) {
                   // delete this junctiontable record as it doesn't exist in the relation data
                   // make del function and call immediately
                   this.db.remove(junctionInfo.junctionBucket,recs[i].key,storeOpts)(); 
@@ -544,6 +544,7 @@ global.OrionStore = SC.Object.extend({
          // now check whether any relations have been left over
          var numrelations = relationKeys.length;
          var relationRec;
+         var noKey = null;
          if(numrelations>0){
             // there are relations to create
             for(i=0;i<numrelations;i++){ // we can safely re-use i
