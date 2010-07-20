@@ -482,7 +482,8 @@ global.OrionServer = SC.Object.extend({
          if(data.relationSet){
             callback({
                fetchResult: {
-                  relationSet: [ data.relationSet ]
+                  relationSet: [ data.relationSet ],
+                  returnData: message.returnData
                }
             });
          }
