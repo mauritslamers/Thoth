@@ -401,6 +401,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    // at last message we need to call dataSourceDidFetchQuery() ourselves
    // 
    // a second function is a wrapper around the previous function, and updates the cache too
+   // it returns the storeKeys created, so the onFetchResult function can update the query
    */
    
    _fetchUpdateStoreAndCache: function(requestKey,store,recordType,records,isComplete) {
@@ -410,16 +411,22 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
          this._requestCache[requestKey].storeKeys = {};
          this._requestCache[requestKey].recordKeys = {};                  
       }
-      var currec,curreckey,storeKey;
+      var currec,curreckey,storeKey,storeKeys = [];
       for(var i=0,len=records.length;i<len;i++){
          currec = records[i];
          curreckey = currec.key;
          storeKey = this.loadRecord(store,recordType,undefined,currec,isComplete);
+         storeKeys.push(storeKey);
          if(!isComplete){ // if not complete, store the record info
             this._requestCache[requestKey].storeKeys[storeKey] = i;
             this._requestCache[requestKey].recordKeys[curreckey] = i;                     
          }
       }
+      // update the recordArray the query belongs to
+      // we cannot call loadQueryResults as it finishes the query, which is not what we want
+      // the query is declared finished as soon as all expected responses are received (by onFetchResult)
+      var recArray = store._findQuery(this._requestCache[requestKey].query, YES, NO);
+      if (recArray) recArray.set('storeKeys', storeKeys);      
    },
    
    onFetchResult: function(data){
@@ -648,12 +655,18 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    _getRelationsArray: function(recordType) {
       var ret = [], recType, curItem;
       
-      recType = recordType.isClass? recordType: recordType.prototype; // get the class in case recordType is a record
+      //recType = recordType.isClass? recordType: recordType.prototype; // get the class in case recordType is a record
+      recType = recordType.prototype; // fix to get to the actual record type
       for(var i in recType){
          curItem = recType[i];
+         //console.log('parsing key ' + i);
          if(curItem && curItem.kindOf && curItem.kindOf(SC.RecordAttribute)){
-            if(curItem.kindOf(SC.ManyAttribute)) ret.push({ type: 'toMany', bucket: curItem.bucket, propertyName: i });
-            if(curItem.kindOf(SC.OneAttribute)) ret.push({ type: 'toOne', bucket: curItem.bucket, propertyName: i});
+            if(curItem.kindOf(SC.ManyAttribute)){
+               ret.push({ type: 'toMany', bucket: curItem.bucket, propertyName: i }); 
+            } 
+            if(curItem.kindOf(SC.OneAttribute)){
+               ret.push({ type: 'toOne', bucket: curItem.bucket, propertyName: i}); 
+            } 
          }
       }
       if(ret.length > 0){
