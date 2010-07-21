@@ -475,7 +475,7 @@ global.OrionServer = SC.Object.extend({
                fetchResult: { 
                   bucket: fetchinfo.bucket, 
                   records: data.recordResult, 
-                  returnData: message.returnData
+                  returnData: fetchinfo.returnData
                }
             });            
          }
@@ -483,7 +483,7 @@ global.OrionServer = SC.Object.extend({
             callback({
                fetchResult: {
                   relationSet: [ data.relationSet ],
-                  returnData: message.returnData
+                  returnData: fetchinfo.returnData
                }
             });
          }
