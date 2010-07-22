@@ -551,10 +551,6 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       // function to process the data from the server when an updateRecord call has been made to the server      
    },
    
-   onRefreshRecordResult: function(data){
-      // function to process the data from the server when a refreshRecord call has been made to the server
-   },
-   
    onDeleteRecordResult: function(data){
       // function to process the data from the server when a deleteRecord call has been made to the server      
    },
@@ -675,20 +671,104 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       else return NO;
    },
    
+   /* OrionNodeRiak record request api
+   { refreshRecord: { bucket: '', key: '', returnData: {} }} 
+   { fetch: { bucket: '', conditions: '', parameters: {}, returnData: {} }}
+   { createRecord: { bucket: '', record: {}, returnData: {} }}
+   { updateRecord: { bucket: '', key: '', record: {}, returnData: {} }}
+   { deleteRecord: { bucket: '', key: '', returnData: {} }}
    
-   refreshRecord: function(){
+   { createRecordResult: {}, returnData: {} }
+   { updateRecordResult: {}, returnData: {} }
+   { deleteRecordResult: {}, returnData: {} }
+   { refreshRecordResult: {}, returnData: {} }
+   */
+   
+   retrieveRecord: function(store,storeKey,id){
+      var recType = store.recordTypeFor(storeKey);
+      var relations = this._getRelationsArray(recType);
+      
+      // do we need a requestCache? Yes we do, as we need the store info, and in case of relations
+      // we will receive multiple responses
+      var numResponses = (relations && (relations instanceof Array))? 1 + relations.length: 1;
+      var requestCacheKey = this._createRequestCacheKey();
+      this._requestCache[requestCacheKey] = { store: store, storeKey: storeKey, recordType: recType, id: id, numResponses: numResponses };
+      var request = { 
+         refreshRecord: { 
+            bucket: recType.prototype.bucket, 
+            key: id, 
+            relations: relations, 
+            returnData: { requestCacheKey: requestCacheKey }
+         }
+      };
+      this.send(request);
+      return YES;
+   },
+   
+   onRefreshRecordResult: function(data){
+      // function to process the data from the server when a refreshRecord call has been made to the server
+      // we have a few cases here that are similar too the fetch request
+      // we cannot just write the stuff to the store, as we have separate messages for relation stuff
+      // the best we can do is save the relations if they come first
+      var refreshResult = data.refreshRecordResult;
+      var requestCacheKey = refreshResult.returnData.requestCacheKey;
+      var curRequestCache = this._requestCache[requestCacheKey];
+      var relationSet = refreshResult.relationSet;
+      var unsavedRelations = curRequestCache.unsavedRelations;
+      var recordData = refreshResult.record;
+      var mergedData, isComplete;
+      if(!curRequestCache.record && relationSet){
+         // relation set arrives first, save it in the requestCache
+         if(unsavedRelations && (unsavedRelations instanceof Array)){
+            this._requestCache[requestCacheKey].unsavedRelations = unsavedRelations.concat(relationSet); // this is the same as fetch, but might not work            
+         }
+         else {
+            this._requestCache[requestCacheKey].unsavedRelations = relationSet;
+         }
+         this._requestCache[requestCacheKey].numResponses--;
+      }
+      if(recordData){
+         // merge the record data and relations if there are unsaved relations
+         // in case of the relationset: _processRelationSet needs an array of recordData and returns an Array
+         // we only have one record here, so feed it an array with one element, and only take the first element
+         // from the return data.
+         mergedData = unsavedRelations? this._processRelationSet([recordData],unsavedRelations)[0]: recordData;
+
+         // store the record in the cache, to make sure that when relations and record data arrives at the same time
+         // can be handled
+         curRequestCache.record = mergedData;
+         // now store the record data in the store
+         //loadRecord: function(store,recordType,storeKey,dataHash,isComplete) {
+         isComplete = (curRequestCache.numResponses < 2)? YES: NO;   
+         this.loadRecord(curRequestCache.store,curRequestCache.recordType,curRequestCache.storeKey,mergedData,isComplete);
+         this._requestCache[requestCacheKey].numResponses--;
+      }
+      if(curRequestCache.record && relationSet){
+         // this is second/last on purpose, just as with fetch. It makes sure that if relations happen to arrive at the same time
+         // in case the record has already arrived, and relation data is being received
+         // merge the relation data with the record and update the data in the store
+         mergedData = this._processRelationSet([curRequestCache.record],relationSet)[0];
+         isComplete = (curRequestCache.numResponses < 2)? YES: NO;   
+         this.loadRecord(curRequestCache.store,curRequestCache.recordType,curRequestCache.storeKey,mergedData,isComplete);
+         this._requestCache[requestCacheKey].numResponses--;
+      }
+      if(this._requestCache[requestCacheKey].numResponses === 0){
+         // last response received, refresh complete, remove requestCache data
+         // we don't need to call dataSourceDidComplete, as the loadRecord function already does the same.
+         delete this._requestCache[requestCacheKey];
+      }
+   },
+   
+   
+   createRecord: function(store,storeKey,params){
       
    },
    
-   createRecord: function(){
+   updateRecord: function(store,storeKey,params){
       
    },
    
-   updateRecord: function(){
-      
-   },
-   
-   deleteRecord: function(){
+   destroyRecord: function(){
       
    }
    
