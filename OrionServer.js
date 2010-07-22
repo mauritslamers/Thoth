@@ -508,7 +508,8 @@ global.OrionServer = SC.Object.extend({
       var clientId = [client.user,client.sessionKey].join("_");
       if(refreshRec.bucket && refreshRec.key){
          this.store.refreshRecord(storeRequest,clientId,function(val){ 
-            callback(val);
+            var ret = { refreshRecordResult: { bucket: val.bucket, key: val.key, record: val, returnData: refreshRec.returnData } };
+            callback(ret);
          });
       }
       else sys.puts("OrionServer received an invalid refreshRecord call.");
