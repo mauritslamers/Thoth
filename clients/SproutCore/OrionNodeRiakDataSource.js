@@ -364,6 +364,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
          var requestKey = this._createRequestCacheKey();
          this._requestCache[requestKey] = { store: store, query: query, numResponses: numResponses };
          request.fetch.returnData = { requestKey: requestKey };
+         console.log('Sending fetchRequest: ' + JSON.stringify(request));
          this.send(request);      
       }
       return YES;
@@ -653,15 +654,19 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       
       //recType = recordType.isClass? recordType: recordType.prototype; // get the class in case recordType is a record
       recType = recordType.prototype; // fix to get to the actual record type
+      var oppositeRecType;
       for(var i in recType){
          curItem = recType[i];
          //console.log('parsing key ' + i);
          if(curItem && curItem.kindOf && curItem.kindOf(SC.RecordAttribute)){
             if(curItem.kindOf(SC.ManyAttribute)){
-               ret.push({ type: 'toMany', bucket: curItem.bucket, propertyName: i }); 
+               // get the opposite record type
+               oppositeRecType = curItem.typeClass().prototype;
+               ret.push({ type: 'toMany', bucket: oppositeRecType.bucket, propertyName: i }); 
             } 
             if(curItem.kindOf(SC.OneAttribute)){
-               ret.push({ type: 'toOne', bucket: curItem.bucket, propertyName: i}); 
+               oppositeRecType = curItem.typeClass().prototype;
+               ret.push({ type: 'toOne', bucket: oppositeRecType.bucket, propertyName: i}); 
             } 
          }
       }
