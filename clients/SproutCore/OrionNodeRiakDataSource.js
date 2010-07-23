@@ -48,8 +48,10 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    _user: '',
    
    _sessionKey: '',
+   
+   store: null, // a reference to the store where the (forced) updates need to be sent
          
-   wsConnect: function(callback){
+   wsConnect: function(store,callback){ // we need the store to direct the push traffic to
       var wsHost = [this.OrionNodeRiakHost,this.OrionNodeRiakPort].join(":");
       var wsURL = ['ws://',wsHost,this.OrionNodeRiakURL].join("");
       this._webSocket = new WebSocket(wsURL);
@@ -74,10 +76,10 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
      
    */
    send: function(val){
-      console.log('Send function called on OrionNodeRiak Datasource');
+      //console.log('Send function called on OrionNodeRiak Datasource');
       if(this._webSocket && val){
          var msg = JSON.stringify(val);
-         console.log('Trying to send message: ' + msg);
+         //console.log('Trying to send message: ' + msg);
          //return this._webSocket.send(msg);
          this._webSocket.send(msg); // cannot return anything as the calling function is most likely GC'ed already
       }
@@ -101,7 +103,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
          // whether websocket is the best way to do binary data... 
          // if there is any binary data, there will be trouble...
          if(event.data){
-            console.log("data in event: " + event.data);
+            //console.log("data in event: " + event.data);
             var messages = JSON.parse(event.data);
             if(messages){
                // check if messages is an array, if not, make one
@@ -234,18 +236,32 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    onPushedCreateRecord: function(data){
       // function to process the creation of a record in the store with the pushed data by the server
       // used when a different user creates a record of which the current user should know
+      var createRequest = data.createRecord;
+      var bucket = createRequest.bucket, key = createRequest.key;
+      var rectype = this._recordTypeCache(bucket);
+      //var relations = createRequest.relations; // cannot recall whether this is actually necessary ... 
+      //var recordToCreate = relations? this._processRelationSet([createRequest.record],relations)
+      //pushRetrieve: function(recordType, id, dataHash, storeKey) {
+      var storeKey = this.store.pushRetrieve(rectype,key,createRequest.record); // this also depends on ONR setting id to the Riak key!!
+      if(!storeKey){
+         // oops... the store didn't allow storing this record...
+         // unclear what to do in this case
+         // let's do an alert for the time being
+         alert("The server has tried to push a createRecord request to your application, but isn't allowed to store it");
+      }
    },
    
    onPushedUpdateRecord: function(data){
       // function to update a change in a record in the store with pushed data by the server
       // used when a different user updates a record of which the current user should know
-      
+      // store.pushRetrieve
+       
    },
    
    onPushedDeleteRecord: function(data){
       // function to delete a record in the store with pushed data by the server
       // used when a different user deletes a record of which the current user should know
-      
+      // store.pushDestroy
    },
    
    /* 
@@ -338,14 +354,20 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    
    */
    
-   fetch: function(store,query){
-      if(!this.isConnected) return NO; // prevent loading stuff when we are not connected 
-      if(!(this.user && this.sessionKey)) return NO; // prevent loading when we are not authenticated
-      var rectype = query.get('recordType');
+   fetch: function(store,query){      
+      var rectype, bucket;
+      
+      rectype = query.get('recordType');
+      if(rectype){
+         bucket = rectype.prototype.bucket;
+         // cache rectype by bucket
+         this._recordTypeCache[bucket] = rectype;
+      }
       if(rectype && query.isRemote()){
+         if(!this.isConnected) return NO; // prevent loading stuff when we are not connected 
+         if(!(this.user && this.sessionKey)) return NO; // prevent loading when we are not authenticated
          // build the request
          // first do the basic stuff
-         var bucket = rectype.prototype.bucket;
          var request = { fetch: { bucket: bucket }};
          var numResponses = 1; // the number of responses we expect
          // now check whether there are conditions and if yes, add them
@@ -434,7 +456,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       // function to process the fetch data returned from a fetch call
       // the first thing we need to do is to get the requestCacheKey, so we can have access to the data we need
       // we need to include runloop stuff, as otherwise SC cannot know this happened
-      SC.RunLoop.begin();
+      //SC.RunLoop.begin();
       var fetchinfo = data.fetchResult;
       var recordsToAdd = null;
       if(fetchinfo){ // don't do anything if no proper fetch result
@@ -499,7 +521,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
             }
          }
       }
-      SC.RunLoop.end();
+     // SC.RunLoop.end();
    },
    
    _processRelationSet: function(records,relationSet) {
@@ -678,17 +700,23 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    
    retrieveRecord: function(store,storeKey,id){
       var recType = store.recordTypeFor(storeKey);
+      if(!id){
+         console.log("It seems you are trying to retrieve a record from a relation of which the opposite side hasn't been loaded yet");
+         // retrieve all records of this type instead?
+      }
       var relations = this._getRelationsArray(recType);
       
       // do we need a requestCache? Yes we do, as we need the store info, and in case of relations
       // we will receive multiple responses
       var numResponses = (relations && (relations instanceof Array))? 1 + relations.length: 1;
       var requestCacheKey = this._createRequestCacheKey();
+      var record = store.materializeRecord(storeKey);
+      console.log("Trying to refresh data of record storeKey: " + storeKey);
       this._requestCache[requestCacheKey] = { store: store, storeKey: storeKey, recordType: recType, id: id, numResponses: numResponses };
       var request = { 
          refreshRecord: { 
             bucket: recType.prototype.bucket, 
-            key: id, 
+            key: record.get('key'), 
             relations: relations, 
             returnData: { requestCacheKey: requestCacheKey }
          }
