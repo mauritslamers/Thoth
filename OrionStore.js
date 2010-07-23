@@ -1,6 +1,7 @@
 // the base model of a store
 
 var sys = require('sys');
+require('./sc/query');
 
 global.OrionStore = SC.Object.extend({
    // user functions
