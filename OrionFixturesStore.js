@@ -8,11 +8,16 @@ the other functions just return the data they receive
 
 
 */
-require('./OrionStore.js');
+require('./OrionStore');
+var sys = require('sys');
 
 global.OrionFixturesStore = OrionStore.extend({
    
+   // User adjustable properties
+   
    primaryKey: '',
+   
+   fixturesBaseDir: './fixtures',
    
    /*
    the storeRequest is an object with the following layout:
@@ -44,22 +49,28 @@ global.OrionFixturesStore = OrionStore.extend({
    _fixturesByBucketAndKey: {},
    
    loadFixtures: function(bucket){
-      var filename = ["./",bucket].join("");
+      var fixturesDir = this.fixturesBaseDir;
+      fixturesDir = (fixturesDir[fixturesDir-1] == "/")? fixturesDir: [fixturesDir,"/"].join("");
+      var filename = [fixturesDir,bucket].join("");
       var ret = require(filename)[bucket];
-      this._loadedFixtures[bucket] = ret;
+      this._loadedFixtures[bucket] = [];
       // load the data twice to be able to index it
       var currec;
       var primaryKeyName = this.primaryKey;
       this._fixturesByBucketAndKey[bucket] = {}; // init fixtures by bucket
       for(var i=0,len=ret.length;i<len;i++){
          currec = ret[i];
-         this._fixturesByBucketAndKey[bucket][currec[primaryKeyName]] = currec; // put in indexed
+         if(!currec.key){
+            if(currec.id !== undefined) ret[i].key = currec.id;
+         }
+         this._loadedFixtures[bucket].push(ret[i]);
+         this._fixturesByBucketAndKey[bucket][currec[primaryKeyName]] = ret[i]; // put in indexed
       }
       return ret;
    },
    
    fetch: function(storeRequest,clientId,callback){  
-      var bucket = this.storeRequest.bucket;
+      var bucket = storeRequest.bucket;
       var loadedData = this._loadedFixtures[bucket];
       loadedData = (loadedData)? loadedData: this.loadFixtures(bucket);
       var conditions = storeRequest.conditions, parameters = storeRequest.parameters;
@@ -70,7 +81,7 @@ global.OrionFixturesStore = OrionStore.extend({
       else {
          ret = loadedData;
       }
-      callback(ret);
+      callback({ recordResult: ret });
    },
    
    refreshRecord: function(storeRequest,clientId,callback){

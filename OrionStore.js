@@ -7,10 +7,12 @@ global.OrionStore = SC.Object.extend({
    // user functions
    
    fetch: function(storeRequest,clientId,callback){  
-      callback("Implement this function!");
+      // callback needs to be called with an object { recordResult: [ records ]}
+      callback("Implement this function!");   
    },
    
    refreshRecord: function(storeRequest,clientId,callback){
+      // callback needs to be called with the record object
       callback("Implement this function!");      
    },
    
@@ -24,7 +26,7 @@ global.OrionStore = SC.Object.extend({
    
    deleteRecord: function(storeRequest,clientId,callback){
       callback("Implement this function!");
-   }
+   },
 
 // some very useful helper functions:
 
@@ -49,6 +51,6 @@ global.OrionStore = SC.Object.extend({
          }
          return ret;         
       }
-   },
+   }
    
 });
