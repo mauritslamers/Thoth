@@ -873,12 +873,41 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       }
    },
    
-   destroyRecord: function(){
-      
+   destroyRecord: function(store,storeKey,params){
+      // destroy record is also a single response
+      var requestCacheKey = this._createRequestCacheKey();
+      var recType = store.recordTypeFor(storeKey);
+      var bucket = recType.prototype.bucket;
+      var recordData = store.readDataHash(storeKey);
+      var key = recordData.key;
+      var returnData = { requestCacheKey: requestCacheKey};
+      this._requestCache[requestCacheKey] = { store: store, storeKey: storeKey, params: params };
+      var relations = this._getRelationsArray(recType);
+      var currel, curRelData;
+      if(relations){ // in case there are relations
+         // we have to process the data to remove the relation stuff
+         var numRelations = relations.length;
+         for(var i=0;i<numRelations;i++){
+            currel = relations[i];
+            curRelData = recordData[currel.propertyName];
+            delete recordData[currel.propertyName];
+            relations[i].keys = curRelData;
+         }
+         //relations separated from the record data         
+      }
+      var request = { deleteRecord: { bucket: bucket, key: key, record: recordData, relations: relations }};
+      this.send(request);
+      return YES;
    },
    
    onDeleteRecordResult: function(data){
       // function to process the data from the server when a deleteRecord call has been made to the server      
+      // only one response expected
+      var deleteResult = data.deleteRecordResult;
+      var requestCacheKey = deleteResult.returnData.requestCacheKey;
+      var requestCache = this._requestCache[requestCacheKey];
+      var store = requestCache.store, storeKey = requestCache.storeKey, params = requestCache.params;
+      store.dataSourceDidDestroy(storeKey);
    }
    
 });
