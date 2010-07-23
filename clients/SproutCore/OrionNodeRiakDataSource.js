@@ -543,19 +543,6 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    // OrionNodeRiak will only push data for records or queries fetched earlier...
    
    
-   
-   onCreateRecordResult: function(data){
-      // function to process the data from the server when a createRecord call has been made to the server
-   },
-   
-   onUpdateRecordResult: function(data){
-      // function to process the data from the server when an updateRecord call has been made to the server      
-   },
-   
-   onDeleteRecordResult: function(data){
-      // function to process the data from the server when a deleteRecord call has been made to the server      
-   },
-   
    /*
       The data source should be able to automatically convert relations into multiple calls to the 
       back end...
@@ -764,18 +751,134 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       }
    },
    
-   
    createRecord: function(store,storeKey,params){
-      
+      // create record will return only one return request
+      var recType = store.recordTypeFor(storeKey);
+      var dataToSend = store.readDataHash(storeKey);
+      var bucket = recType.prototype.bucket;
+      var relations = this._getRelationsArray(recType);
+      var currel, curRelData;
+      if(relations){ // in case there are relations
+         // we have to process the data to remove the relation stuff
+         var numRelations = relations.length;
+         for(var i=0;i<numRelations;i++){
+            currel = relations[i];
+            curRelData = dataToSend[currel.propertyName];
+            delete dataToSend[currel.propertyName];
+            relations[i].keys = curRelData;
+         }
+         //relations separated from the record data         
+      }
+      // now create the request
+      var requestCacheKey = this._createRequestCacheKey();
+      this._requestCache[requestCacheKey] = { store: store, storeKey: storeKey, params: params };
+      var returnData = { requestCacheKey: requestCacheKey };
+      var request = { createRecord: { bucket: bucket, record: dataToSend, relations: relations, returnData: returnData }};
+      this.send(request);
+      return YES;
+   },
+   
+   onCreateRecordResult: function(data){
+      // function to process the data from the server when a createRecord call has been made to the server
+      var createRecordResult = data.createRecordResult;
+      var requestCacheKey = createRecordResult.returnData.requestCacheKey;
+      var requestCache = this._requestCache[requestCacheKey];
+      var store = requestCache.store;
+      var storeKey = requestCache.storeKey;
+      var recordData = createRecordResult.record;
+      store.dataSourceDidComplete(storeKey,recordData);
+      // we can destroy the requestCache immediately because relations are inside the record data already, 
+      // we don't even have to parse them ...
+      delete this._requestCache[requestCacheKey];
    },
    
    updateRecord: function(store,storeKey,params){
-      
+      // function to send updates to ONR.
+      // ONR supports separate relation updates from record information
+      // SC doesn't at the moment, so we'll just do everything together
+      // reading the updateRecord documentation: params can be provided along with the commitRecords() 
+      // call to the store... So that might provide a route...
+      var recType = store.recordTypeFor(storeKey);
+      var dataToSend = store.readDataHash(storeKey);
+      var bucket = recType.prototype.bucket;
+      var key = dataToSend.key;
+      var relations = this._getRelationsArray(recType);
+      var currel, curRelData;
+      if(relations){ // in case there are relations
+          // we have to process the data to remove the relation stuff
+          var numRelations = relations.length;
+          for(var i=0;i<numRelations;i++){
+             currel = relations[i];
+             curRelData = dataToSend[currel.propertyName];
+             delete dataToSend[currel.propertyName];
+             relations[i].keys = curRelData;
+          }
+          //relations separated from the record data         
+       }
+       var numResponses = (relations.length>0)? 1 + relations.length: 1;
+       var requestCacheKey = this._createRequestCacheKey();
+       this._requestCache[requestCacheKey] = { store: store, storeKey: storeKey, params: params, recordKey: key, numResponses: numResponses };
+       var returnData = { requestCacheKey: requestCacheKey };
+       var request = { updateRecord: { bucket: bucket, key: key, record: dataToSend, relations: relations, returnData: returnData }};
+       this.send(request);
+       return YES;
+   },
+   
+   
+   onUpdateRecordResult: function(data){
+      // function to process the data from the server when an updateRecord call has been made to the server     
+      // unlike the createRecord the relations update are a separate message, so we have to take that into account
+      var updateResult = data.updateRecordResult;
+      var requestCacheKey = updateResult.returnData.requestCacheKey;
+      var requestCache = this._requestCache[requestCacheKey];
+      var record = requestCache.record;
+      var unsavedRelations = requestCache.unsavedRelations;
+      var relationSet = updateResult.relationSet;
+      var store = requestCache.store;
+      var mergedRecord,isComplete;
+      var recType = store.recordTypeFor(requestCache.storeKey);
+      if(!requestCache.record && relationSet){
+         // no record in the cache, so we are getting a relationSet 
+         if(unsavedRelations && (unsavedRelations instanceof Array)){
+            this._requestCache[requestCacheKey].unsavedRelations = unsavedRelations.concat(relationSet); // still wondering whether this works the way I think it does
+         }
+         else {
+            this._requestCache[requestCacheKey].unsavedRelations = relationSet;
+         }
+         unsavedRelations = this._requestCache[requestCacheKey].unsavedRelations; // be sure to update the unsavedRelations
+         this._requestCache[requestCacheKey].numResponses--;
+      }
+      if(record){
+         // there is a record in the update result message
+         // check whether there are unsaved relations, unsavedRelations can be safely used, as it was updated
+         mergedRecord  = (unsavedRelations)? this._processRelationSet([record],unsavedRelations)[0]: record;
+         this._requestCache[requestCacheKey].record = mergedRecord;
+         //loadRecord: function(store,recordType,storeKey,dataHash,isComplete) {
+         isComplete = (this._requestCache[requestCacheKey].numResponses < 2)? YES: NO;
+         this.loadRecord(store,recType,requestCache.storeKey,mergedRecord, isComplete);
+         this._requestCache[requestCacheKey].numResponses--;
+      }
+      if(relationSet && this._requestCache[requestCacheKey].record){
+         // update the record with the relation set arriving
+         mergedRecord = this._processRelationSet([record],relationSet)[0];
+         this._requestCache[requestCacheKey].record = mergedRecord;
+         isComplete = (this._requestCache[requestCacheKey].numResponses < 2)? YES: NO;
+         this.loadRecord(store,recType,requestCache.storeKey,mergedRecord, isComplete);
+         this._requestCache[requestCacheKey].numResponses--;
+      }
+      if(this._requestCache[requestCacheKey].numResponses === 0){
+         // destroy the cache
+         // no need for dataSourceDidComplete as our loadRecord has already taken care...
+         delete this._requestCache[requestCacheKey];
+      }
    },
    
    destroyRecord: function(){
       
-   }
+   },
    
+   onDeleteRecordResult: function(data){
+      // function to process the data from the server when a deleteRecord call has been made to the server      
+   }
    
 });
