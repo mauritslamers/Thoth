@@ -98,7 +98,7 @@ global.OrionStore = SC.Object.extend({
    },
    
    createRecord: function(storeRequest,clientId,callback){
-      var bucket = storeRequest.bucket, key = storeRequest.key, record = storeRequest.record;
+      var bucket = storeRequest.bucket, key = storeRequest.key, record = storeRequest.recordData;
       var relations = storeRequest.relations;
       var me = this;
       this.createDBRecord(bucket,key,record,clientId,function(newrec){
@@ -118,7 +118,7 @@ global.OrionStore = SC.Object.extend({
    },
    
    updateRecord: function(storeRequest,clientId,callback){
-      var bucket = storeRequest.bucket, key = storeRequest.key, record = storeRequest.record;
+      var bucket = storeRequest.bucket, key = storeRequest.key, record = storeRequest.recordData;
       var relations = storeRequest.relations;
       var me = this;
       this.updateDBRecord(bucket,key,record,clientId,function(data){
