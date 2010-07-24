@@ -115,7 +115,6 @@ global.OrionStore = SC.Object.extend({
          }
          callback(newrec);
       });
-      callback("Implement this function!");
    },
    
    updateRecord: function(storeRequest,clientId,callback){
