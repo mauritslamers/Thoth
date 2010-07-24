@@ -46,44 +46,13 @@ if(!global.SC) require('./sc/runtime/core');
 var riak = require('./riak-js/lib');
 var sys = require('sys');
 require('./sc/query');
+require('./OrionStore'); // load the prototype
 
-global.OrionRiakStore = SC.Object.extend({
+global.OrionRiakStore = OrionStore.extend({
    
-   db: new riak.getClient(),
-      
-   models: [],
+   primaryKey: 'key',
    
-   _modelsByName: [],
-   
-   _getModelByResourceName: function(resourcename){
-      //function to get the model for a resource name
-      // if it is the first time, find it and add it to the cache
-      var cachedmodel = this._modelsByName[resourcename];
-      if(cachedmodel){
-         return cachedmodel;
-      }
-      else {
-         var models = this.models;
-         var store = this;
-         models.forEach(function(key,val){
-            if(val){
-               if(val.resource){ // if resource exists, use it
-                  if(val.resource == resourcename){
-                     store._modelsByName[resourcename] = val;
-                  }
-               }
-               else { // else use bucket name
-                  if(val.bucketname == resourcename){
-                     store._modelsByName[resourcename] = val;
-                  }
-               }
-            }
-         });
-         return this._modelsByName[resourcename];
-      }
-   },
-   
-   
+   db: new riak.getClient(),   
    
    fetch: function(storeRequest,clientId,callback){      
       // function to get all records for a certain model.
@@ -205,18 +174,8 @@ global.OrionRiakStore = SC.Object.extend({
         - data is the set of keys describing the relation, associative array by key
         - requestKey is the key of the original request
       */ 
-   _getJunctionInfo: function(model,relation){
-      // return an object with all generated information about the relation:
-      // { modelBucket: '', relationBucket: '', junctionBucket: '', modelRelationKey: '', relationRelationKey: ''}
-      return {
-        modelBucket: model,
-        relationBucket: relation,
-        junctionBucket: [model,relation].sort().join("_"),
-        modelRelationKey: [model,"key"].join("_"),
-        relationRelationKey: [relation,"key"].join("_")
-      };
-   },
    
+   // this function has to be rewritten
    _createFetchRelationOnSuccess: function(relation,junctionInfo,records,callback){
       // function to create a callback for every fetch of a relation
       // this was a lambda function first inside _fetchRelation, but as refreshRecord should
@@ -225,6 +184,7 @@ global.OrionRiakStore = SC.Object.extend({
       //make sure records is an array
       records = (records instanceof Array)? records: [records];
       return function(junctionRecs,meta){ // success callback
+         
          var curquery, currec, curkey, curConditions = junctionInfo.modelRelationKey + " = {relKey}", curParameters;
          var retkeys = [], retdata = {};
          // we need to go through all records and all junctionRecs to create a set of relations
@@ -564,7 +524,7 @@ global.OrionRiakStore = SC.Object.extend({
          returndata.bucket = storeRequest.bucket;
          returndata.key = storeRequest.key;
          returndata.date = metadata.date;
-         callback(data);
+         callback(returndata);
       };
    },
    
@@ -621,7 +581,7 @@ global.OrionRiakStore = SC.Object.extend({
       this.db.map({source: 'function(value){ return [value];}'}).run(junctionInfo.junctionBucket)(process);
    }
    
-   
+   // 
    
    
 });
