@@ -217,6 +217,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       // this is the part where interaction with the store comes into play
       // let's create handlers for every type of action ...
       // if you need extra calls, add 'em here
+      console.log("Received data message: " + JSON.stringify(data));
       if(data.createRecord) this.onPushedCreateRecord(data);
       if(data.updateRecord) this.onPushedUpdateRecord(data);
       if(data.deleteRecord) this.onPushedDeleteRecord(data);
@@ -303,7 +304,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    
    loadRecord: function(store,recordType,storeKey,dataHash,isComplete) {
       // copy this behaviour from dataSource did complete and pushRetrieve
-      var id = dataHash.id;
+      var id = dataHash.id || dataHash.key; // when id doesn't exist, try key
       var status, K = SC.Record;
       if(id){
          if(storeKey === undefined){
@@ -705,18 +706,17 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
          // retrieve all records of this type instead?
       }
       var relations = this._getRelationsArray(recType);
-      
+      var recordId = id? id: store.idFor(storeKey);
       // do we need a requestCache? Yes we do, as we need the store info, and in case of relations
       // we will receive multiple responses
       var numResponses = (relations && (relations instanceof Array))? 1 + relations.length: 1;
       var requestCacheKey = this._createRequestCacheKey();
-      var record = store.materializeRecord(storeKey);
       console.log("Trying to refresh data of record storeKey: " + storeKey);
-      this._requestCache[requestCacheKey] = { store: store, storeKey: storeKey, recordType: recType, id: id, numResponses: numResponses };
+      this._requestCache[requestCacheKey] = { store: store, storeKey: storeKey, recordType: recType, id: recordId, numResponses: numResponses };
       var request = { 
          refreshRecord: { 
             bucket: recType.prototype.bucket, 
-            key: record.get('key'), 
+            key: recordId, 
             relations: relations, 
             returnData: { requestCacheKey: requestCacheKey }
          }
