@@ -337,10 +337,10 @@ global.OrionServer = SC.Object.extend({
    
    // returned by the server as answer to a client request
    { fetchResult: { bucket: '', records: [], returnData: {} }}
-   { createRecordResult: {}, returnData: {} }
-   { updateRecordResult: {}, returnData: {} }
+   { createRecordResult: { bucket: '', key: '', record: {}, returnData: {} } }
+   { updateRecordResult: { bucket: '', key: '', record: {}, returnData: {} } }
    { deleteRecordResult: {}, returnData: {} }
-   { refreshRecordResult: {}, returnData: {} }
+   { refreshRecordResult: { bucket: '', key: '', record: {}, returnData: {} } }
    */
 
 
@@ -508,7 +508,15 @@ global.OrionServer = SC.Object.extend({
       var clientId = [client.user,client.sessionKey].join("_");
       if(refreshRec.bucket && refreshRec.key){
          this.store.refreshRecord(storeRequest,clientId,function(val){ 
-            var ret = { refreshRecordResult: { bucket: val.bucket, key: val.key, record: val, returnData: refreshRec.returnData } };
+            // this function can be called with different results: with record data and with relations
+            var ret;
+            if(val.refreshResult){
+               var rec = val.refreshResult;
+               ret = { refreshRecordResult: { bucket: rec.bucket, key: rec.key, record: rec, returnData: refreshRec.returnData } };
+            }
+            if(val.relationSet){
+               ret = { refreshRecordResult: { relationSet: val.relationSet, returnData: refreshRec.returnData }};
+            }
             callback(ret);
          });
       }
