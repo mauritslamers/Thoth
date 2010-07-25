@@ -173,7 +173,7 @@ global.OrionSession = SC.Object.extend({
             this._loggedInUsers[user].lastSeen.remoteAt(curSesIndex);
          } // sessionkey doesn't exist, ignore
          // always check if there are any sessions left
-         if(this._loggedInUsers[user].sessionKeys.length == 0){
+         if(this._loggedInUsers[user].sessionKeys.length === 0){
             // remove the user from the _loggedInUsers as well as the knownUsers cache
             delete this._loggedInUsers[user];
             this._knownUsers.removeObject(user);
@@ -185,6 +185,7 @@ global.OrionSession = SC.Object.extend({
    // functions to pass on requests to the sessions user cache
    
    storeQuery: function(user,sessionKey,bucket,conditions,parameters){
+      //sys.puts("Storing query for user " + user + " and sessionKey: " + sessionKey + " with bucket: " + bucket + " and conditions " + conditions + " and parameters " + JSON.stringify(parameters));
       if(this._loggedInUsers && this._loggedInUsers[user]){
          var sesIndex = this._loggedInUsers[user].sessionKeys.indexOf(sessionKey);
          if(sesIndex > -1){ // session found
@@ -235,6 +236,7 @@ global.OrionSession = SC.Object.extend({
          if(sesIndex > -1){ // session found
             return this._loggedInUsers[user].sessionData[sesIndex].shouldReceive(record);
          }
+         return NO;
       }
    },
    
@@ -261,6 +263,7 @@ global.OrionSession = SC.Object.extend({
       // the purpose of the function is to check all existing session data to check whether there is a match
       // between the given record and a specific session
       // it returns an array with users and sessions and for what reason a match was found (bucketkey or query)
+      //sys.puts("Running getMatchingUserSessionsForRecord with record " + JSON.stringify(record));
       
       var ret = [];
       var knownUsers = this._knownUsers;
@@ -271,6 +274,7 @@ global.OrionSession = SC.Object.extend({
             curUserInfo = this._loggedInUsers[curUser];
             numSessions = curUserInfo.sessionKeys.length; // sessionKeys rules the set
             for(var j=0;j<numSessions;j++){
+               //sys.puts("Probing match for user " + curUser + " with sessionKey " + curUserInfo.sessionKeys[j]);
                curSessionCache = curUserInfo.sessionData[j];
                isMatch = curSessionCache.shouldReceive(record);
                if(isMatch){

@@ -26,22 +26,30 @@ global.OrionUserCache = SC.Object.extend({
    
    // an array [bucketname][keyname] = timestamp;
    
-   _bucketKeyStore: {}, 
+   _bucketKeyStore: null, 
    
    /*
     an array containing objects of the following setup:
     {  conditions: "", parameters: {}, bucket: "", queryObject: SC.Query }
     */
-   _fetchQueryStore: [],
+   _fetchQueryStore: null,
    
    // an array [bucketname][keyname] = record
    
-   _requestQueue: [], // to store request information in case the connection has been severed
+   _requestQueue: null, // to store request information in case the connection has been severed
    // the idea here is that as soon as a connection closes and no logout has taken place
    // the requests are stored here
    
+   init: function(){
+      this._bucketKeyStore = {};
+      this._fetchQueryStore = [];
+      this._requestQueue = {};
+      arguments.callee.base.apply(this, arguments);
+   },
+   
    indexOfQuery: function(bucket,conditions,parameters){
       var queries = this._fetchQueryStore;
+      //if(!queries) this._fetchQueryStore = [];
       for(var i=0,l=queries.length;i<l;i++){
         var curQuery = queries[i];
         if((curQuery.conditions == conditions) && (curQuery.parameters == parameters) && (curQuery.bucket == bucket)){
@@ -53,24 +61,29 @@ global.OrionUserCache = SC.Object.extend({
    },
    
    storeQuery: function(bucket,conditions,parameters){
+      //sys.puts(" context of this storeQuery call: " + sys.inspect(this));
       //create a query from the given conditions and parameters in case such a query doesn't exist already
       // but in a way we have to make sure there will be no double queries around
       if(bucket){ // we need a bucket to be able to store anything useful
          // first check whether a similar query already exists
          var indexOfQuery = this.indexOfQuery(bucket,conditions,parameters);
          if(indexOfQuery == -1){
-            sys.puts("Creating new query with bucket '" + bucket + "'");
+            //sys.puts("Creating new query with bucket '" + bucket + "'");
             // doesn't exist, so add one
             var newQueryObj = { bucket: bucket };
             if(conditions && parameters){ // "normal query"
+               //sys.puts("adding to query: conditions: " + conditions);
+               //sys.puts("adding to query: parameters: " + JSON.stringify(parameters));
                newQueryObj.conditions = conditions;
                newQueryObj.parameters = parameters;
                var newquery = SC.Query.create({ conditions: conditions, parameters: parameters});
                newquery.parse();
+               //sys.puts("inspecting new query object: " + sys.inspect(newquery));
                newQueryObj.queryObject = newquery;
             }
             // if no conditions and parameters are given we have a match all for a bucket, so just push
             this._fetchQueryStore.push(newQueryObj);
+            //sys.puts("inspecting the queryStore: " + sys.inspect(this._fetchQueryStore));
             return YES; // stored
          } else return NO; // query already exists
       } else return NO; // no bucket given
@@ -132,6 +145,7 @@ global.OrionUserCache = SC.Object.extend({
    },
    
    shouldReceive: function(record){
+      //sys.puts(" context of this shouldReceive call: " + sys.inspect(this));
       // function to check whether the current user should receive and what the match is
       // returns either NO, "bucketkey" or "query".
       // In case of the bucketkey match the user has actually requested the record in the past
@@ -147,36 +161,48 @@ global.OrionUserCache = SC.Object.extend({
           recordbucket = record.bucket,
           recordkey = record.key;
           
+      //sys.puts("Trying to find a bucket and key combination...");
       if(bucketkeystore[recordbucket]){
          if(bucketkeystore[recordbucket][recordkey]){
             // the key exists, check the timestamp..
             // thinking of it, is that actually necessary? whenever this function is called 
             // the timestamp will always be in the past...
+            //sys.puts("Found a match for bucket " + recordbucket + " and key " + recordkey);
             return "bucketkey";
          }         
       }
       
+      //sys.puts("No match found in the bucket_key_store, trying queries");
+      //sys.puts("inspecting the fetchQueryStore: " + sys.inspect(this._fetchQueryStore));
       // if we are running here, we should check the existing queries
       var queries = this._fetchQueryStore;
       var numqueries = queries.length;
-      var queryObj;
+      //var queryObj;
       if(numqueries>0){
          for(var i=0;i<numqueries;i++){
-            queryObj = queries[i];
+            var queryObj = queries[i];
+            //sys.puts("Inspecting current query: " + sys.inspect(queryObj));
             // check whether the current query is for the correct bucket
+            //sys.puts("trying query for bucket " + queryObj.bucket);
             if(queryObj.bucket == recordbucket){
                // we need that it might fit, just check whether conditions are set
                // if they are set, they need to match
-               if(queryObj.conditions && queryObj.parameters){
+               //sys.puts("checking whether conditions and parameters apply, conditions " + queryObj.conditions + " and parameters " + JSON.stringify(queryObj.parameters));
+               if(queryObj.conditions){ // it can also be pure conditions!!!
                   if(queryObj.queryObject.contains(record)){
+                     //sys.puts("the current query has found a match for record: " + JSON.stringify(record));
                      return "query"; 
                   } 
-                  else { // conditions exist, but the record doesn't match those conditions
-                     return NO;
-                  }
+                  // the following lines seem dangerous, because if there are more than one query based on one bucket
+                  // these lines prevent checking against them...
+                  //else { // conditions exist, but the record doesn't match those conditions
+                  //   return NO;
+                  //}
                }
                else {
                   // if the conditions are not set, we have a match all query for a bucket, so return query
+                  // as we have a match all, we can safely stop searching here
+                  //sys.puts("No conditions have been found, this means we have a all-in for a bucket, so return query");
                   return "query";
                }
             } // query doesn't match bucket, continue

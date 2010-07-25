@@ -285,9 +285,9 @@ global.OrionStore = SC.Object.extend({
    createRelation: function(storeRequest,record,relation,clientId,callback){
       // function to create a relation, keys need to be in relation.keys
       var junctionInfo = this.getJunctionInfo(storeRequest.bucket,relation.bucket);
-      sys.puts("trying to create a set of relation records for master bucket " + storeRequest.bucket + " and related bucket: " + relation.bucket);
-      sys.puts("the relation is: " + JSON.stringify(relation));
-      sys.puts("the clientId is: " + clientId);
+      //sys.puts("trying to create a set of relation records for master bucket " + storeRequest.bucket + " and related bucket: " + relation.bucket);
+      //sys.puts("the relation is: " + JSON.stringify(relation));
+      //sys.puts("the clientId is: " + clientId);
       var relationKeys = relation.keys;
       var masterKey = record[this.primaryKey];
       var newRelRec, noKey = null;
