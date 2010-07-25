@@ -337,7 +337,7 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 	   // it is better to do this in the OrionServer part as we have the
 	   // data on what kind of request has been made...
 	   var client = this.getClientBySessionKey(sessionKey);
-	   if(client && client.isConnected && client.isAuthenticated && client.user == user){ // better be safe than sorry
+	   if(client && client.isConnected && client.isAuthenticated && (client.user == user) && (client.sessionKey == sessionKey)){ // better be safe than sorry
 	      client.send(request);
 	      return YES;
 	   }
