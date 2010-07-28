@@ -256,13 +256,31 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       // function to update a change in a record in the store with pushed data by the server
       // used when a different user updates a record of which the current user should know
       // store.pushRetrieve
-       
+      var updateRequest = data.updateRecord;
+      // the layout of the updateRecord call is similar to the updateRecordResult
+      var bucket = updateRequest.bucket;
+      var key = updateRequest.key;
+      var rectype = this._recordTypeCache(bucket);
+      var result = this.store.pushRetrieve(rectype,key,updateRequest.record); 
+      if(!result){
+         // we need to think of a proper way to deal with not being allowed to update a record...
+         // it shouldn't happen though if the application is using nested stores...
+         alert("The server has tried to update a record in your application, but wasn't allowed to do so!");
+      }
    },
    
    onPushedDeleteRecord: function(data){
       // function to delete a record in the store with pushed data by the server
       // used when a different user deletes a record of which the current user should know
       // store.pushDestroy
+      var deleteRequest = data.deleteRecord;
+      var bucket = deleteRequest.bucket;
+      var key = deleteRequest.key;
+      var rectype = this._recordTypeCache(bucket);
+      var result = this.store.pushDestroy(rectype,key);
+      if(!result){
+         alert("The server has tried to delete a record from your application, but wasn't allowed to do so!");
+      }
    },
    
    /* 
