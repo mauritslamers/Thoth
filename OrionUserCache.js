@@ -94,6 +94,7 @@ global.OrionUserCache = SC.Object.extend({
       // if the bucket/key combination already exists, update the timestamp
       // the time stamp seems to be unnessary, but let's keep it for the moment
       var storedBucket = this._bucketKeyStore[bucket];
+      timestamp = timestamp? timestamp: new Date().getTime(); // assign a timestamp if no timestamp hasn't been provided...
       if(storedBucket){
          var storedTimeStamp = storedBucket[key];
          if(storedTimeStamp){

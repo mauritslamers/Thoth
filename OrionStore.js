@@ -144,12 +144,14 @@ global.OrionStore = SC.Object.extend({
    
    deleteRecord: function(storeRequest,clientId,callback){
       var bucket = storeRequest.bucket, key=storeRequest.key, relations = storeRequest.relations;
-      this.deleteDBRecord(bucket,key,clientId,callback);
+      // first destroy relations
       if(relations && (relations instanceof Array)){
          for(var i=0,len=relations.length;i<len;i++){
             this.destroyRelation(storeRequest,relations[i],clientId); // for the moment, don't provide a callback
          }
       }
+      // now delete the actual record
+      this.deleteDBRecord(bucket,key,clientId,callback);
    },
 
    // relation resolving functions (COMPUTED PROPERTIES??)
@@ -325,10 +327,8 @@ global.OrionStore = SC.Object.extend({
          // get all junctioninfo for the current record
          var junctionRecs = me._junctionDataFor(storeRequest,junctionInfo,junctionData,true); // have it return the entire junction record
          var curJuncKey;
-         sys.puts("number of junctionRecords found: " + junctionRecs.length);
          for(var i=0,len=junctionRecs.length;i<len;i++){
             curJuncKey=junctionRecs[i][primKey];
-            sys.puts("deleting junctionRecord key: " + curJuncKey);
             me.deleteDBRecord(junctionInfo.junctionBucket,curJuncKey,clientId);
          }
          // in this implementation there is no error check...
@@ -352,7 +352,7 @@ global.OrionStore = SC.Object.extend({
             currec = records[i];
             // WARNING: the query language should not get the property using .get() as the
             // records the query object is called with are NOT SC.Record objects and calling 
-            // .get on them to get the property value results in a call to the function overhead
+            // .get on them to get the property value results in a call to the wrapper function 
             // in this case resulting in a call to the function created by the store._createRiakFetchOnSuccess function
             if(query.contains(currec)){ 
                ret.push(currec); 

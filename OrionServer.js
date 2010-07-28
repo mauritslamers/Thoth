@@ -562,13 +562,16 @@ global.OrionServer = SC.Object.extend({
       as soon as the connection is restored, all actions will be sent to the client and the sessionCache updated.
       */      
       var matchingUserSessions = this.sessionModule.getMatchingUserSessionsForRecord(record);
-      
+      //sys.puts("Found " + matchingUserSessions.length + " matching user session for record " + JSON.stringify(record) + " and action " + action);
       var curUser, curSessionKey, curMatchType, result, createRequest;
       var me=this; // needed because everything below is inside a forEach
       matchingUserSessions.forEach(function(sessionInfo){
          curUser = sessionInfo.user;
          curSessionKey = sessionInfo.sessionKey;
          curMatchType = sessionInfo.matchType;
+         //sys.puts("Current user: " + curUser);
+         //sys.puts("current sessionKey: " + curSessionKey);
+         //sys.puts("Current matchtype: " + curMatchType);
          if(curSessionKey !== originalSessionKey){
             switch(action){
                case 'create': 
@@ -693,6 +696,10 @@ global.OrionServer = SC.Object.extend({
       var bucket = deleteRec.bucket;
       var key = deleteRec.key;
       var record = deleteRec.record; // this must be here, as we need the record data to distribute...
+      // assign the bucket and key of the request to the record if they don't exist already... 
+      // we need the bucket and key on the record in order to be able to distribute 
+      if(!record.bucket && bucket) record.bucket = bucket; 
+      if(!record.key && key) record.key = key;
       // sending the bucket and key around is sufficient, and probably we didn't get more data anyway...
       var clientId = [client.user,client.sessionKey].join("_");
       var me = this;
