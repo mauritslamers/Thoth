@@ -692,15 +692,24 @@ global.OrionServer = SC.Object.extend({
       var deleteRec = message.deleteRecord;
       var bucket = deleteRec.bucket;
       var key = deleteRec.key;
-      var data = deleteRec.record; // this must be here, as we need the record data to distribute...
-      // we could maybe suffice only sending the bucket and key around...
+      var record = deleteRec.record; // this must be here, as we need the record data to distribute...
+      // sending the bucket and key around is sufficient, and probably we didn't get more data anyway...
       var clientId = [client.user,client.sessionKey].join("_");
       var me = this;
-      if(bucket && key && clientId){
-         this.store.deleteRecord({ bucket: bucket, key: key}, clientId, function(val){
-            callback({deleteRecordResult: { record: data, returnData: deleteRec.returnData}});
-            me.distributeChanges(data,"delete",client.user,client.sessionKey);
+      if(bucket && key && clientId && record){ 
+         var storeRequest = { 
+            bucket: bucket, 
+            key: key,
+            recordData: record,
+            relations: deleteRec.relations
+         };
+         this.store.deleteRecord(storeRequest, clientId, function(val){
+            callback({deleteRecordResult: { bucket: bucket, key: key, record: record, returnData: deleteRec.returnData}});
+            me.distributeChanges(record,"delete",client.user,client.sessionKey);
          });
+      }
+      else {
+         sys.puts("Trying to destroy record without providing the proper record data!");
       }
    }
    

@@ -119,11 +119,14 @@ global.OrionRiakStore = OrionStore.extend({
    deleteDBRecord: function(resource,key,clientId,callback){
       // check for callbacks.. Often it is not included!
       if(resource && key && clientId){
-         var opts = { clientId: clientId};
+         var opts = { clientId: clientId };
          var deleteRec = this.db.remove(resource,key,opts);
          deleteRec(function(rec,meta){
             if(callback) callback();
          });
+      }
+      else {
+         sys.puts("Trying to delete a record, but not enough information provided");
       }
    }
    

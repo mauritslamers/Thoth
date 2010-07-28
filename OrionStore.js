@@ -122,7 +122,9 @@ global.OrionStore = SC.Object.extend({
       var relations = storeRequest.relations;
       var me = this;
       // first update relations, because it allows to be sending the new relation data in one go with the record,
-      // which makes distributing the changes much easier
+      // which makes distributing the changes much easier. This is because it seems rather tricky to distribute the relation
+      // data before they are written in the db. With this setup the changes will be distributed around the same time as 
+      // the data arrives to the database.
       if(relations && (relations instanceof Array)){
          for(var i=0,l=relations.length;i<l;i++){
             me.updateRelation(storeRequest,record,relations[i],clientId);
@@ -318,13 +320,16 @@ global.OrionStore = SC.Object.extend({
       var recKey = storeRequest.key;
       var junctionInfo = this.getJunctionInfo(storeRequest.bucket,relation.bucket);
       var me = this;
+      var primKey = this.primaryKey;
       this.fetchDBRecords(junctionInfo.junctionBucket,function(junctionData){
          // get all junctioninfo for the current record
          var junctionRecs = me._junctionDataFor(storeRequest,junctionInfo,junctionData,true); // have it return the entire junction record
          var curJuncKey;
+         sys.puts("number of junctionRecords found: " + junctionRecs.length);
          for(var i=0,len=junctionRecs.length;i<len;i++){
-            curJuncKey=junctionRecs[i][me.primaryKey];
-            me.deleteDBRecord(junctionInfo.bucket,curJuncKey,clientId);
+            curJuncKey=junctionRecs[i][primKey];
+            sys.puts("deleting junctionRecord key: " + curJuncKey);
+            me.deleteDBRecord(junctionInfo.junctionBucket,curJuncKey,clientId);
          }
          // in this implementation there is no error check...
          if(callback) callback(YES);
