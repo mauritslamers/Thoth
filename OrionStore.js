@@ -7,8 +7,9 @@ require('./sc/query');
 global.OrionStore = SC.Object.extend({
    primaryKey: 'id', // put here the name of the primaryKey 
    
+   filterBySCQuery: YES, // have SC Query filter the records if YES. The conditions and parameters are always passed on to the DB calls
    
-   
+   automaticRelations: YES, // have the store automatically parse the relations, The relations are always passed on to the DB calls
    
    // user functions
    
@@ -24,31 +25,37 @@ global.OrionStore = SC.Object.extend({
         { bucket: '', type: 'toMany', propertyName: '', keys: [] } 
      ] 
    }
+   
+   
    */
    // functions to create, delete and fetch database records
    // use the callback function to send back the results as an array of records
    // make sure that the callback is called with an JS Array of objects and not with JSON data!
-   createDBRecord: function(resource,key,data,clientId,callback){
+   
+   // Be aware that in case you want to have automatic relations, these functions are also used to get the relation data
+   // You can prevent automatic relations by not providing relation data in the request...
+   
+   createDBRecord: function(storeRequest,clientId,callback){
       // the callback expects the new record
       console.log("Implement this function");
    },
    
-   updateDBRecord: function(resource,key,data,clientId,callback){
+   updateDBRecord: function(storeRequest,clientId,callback){
       // the callback expects the updated record
       console.log("Implement this function");
    },
    
-   deleteDBRecord: function(resource,key,clientId,callback){
+   deleteDBRecord: function(storeRequest,clientId,callback){
       // check for callbacks.. Often it is not included!
       console.log("Implement this function");
    },
    
-   fetchDBRecords: function(resource,callback){
+   fetchDBRecords: function(storeRequest,callback){
       // the callback expects an array of js objects, so make sure that the data has been parsed 
       console.log("Implement this function");
    },
    
-   refreshDBRecord: function(resource,key,clientId,callback){
+   refreshDBRecord: function(storeRequest,clientId,callback){
       // the callback expects a record
       console.log("Implement this function");       
    },
@@ -63,12 +70,12 @@ global.OrionStore = SC.Object.extend({
       var parameters = storeRequest.parameters;
       var me = this;
       if(bucket && callback){
-         this.fetchDBRecords(bucket,function(data){
+         this.fetchDBRecords(storeRequest,function(data){
             // check for conditions
-            var records = conditions? me._filterRecordsByQuery(data,conditions,parameters): data;
+            var records = (conditions && me.filterBySCQuery)? me._filterRecordsByQuery(data,conditions,parameters): data;
             callback({ recordResult: records });
             // check whether there were relations in the original request
-            if(relations && (relations instanceof Array)){
+            if(me.automaticRelations && relations && (relations instanceof Array)){
                var junctionInfo;
                for(var i=0,len=relations.length;i<len;i++){
                   // for every relation, get the data
@@ -83,12 +90,12 @@ global.OrionStore = SC.Object.extend({
    refreshRecord: function(storeRequest,clientId,callback){
       // callback needs to be called with the record object
       var bucket = storeRequest.bucket, key = storeRequest.key;
-      this.refreshDBRecord(bucket,key,clientId,function(record){
+      this.refreshDBRecord(storeRequest,clientId,function(record){
          callback({ refreshResult: record });
       });
       // relations
       var relations = storeRequest.relations;
-      if(relations && (relations instanceof Array)){
+      if(this.automaticRelations && relations && (relations instanceof Array)){
          var junctionInfo;
          for(var i=0,len=relations.length;i<len;i++){
             junctionInfo = this.getJunctionInfo(bucket,relations[i].bucket);
@@ -101,11 +108,11 @@ global.OrionStore = SC.Object.extend({
       var bucket = storeRequest.bucket, key = storeRequest.key, record = storeRequest.recordData;
       var relations = storeRequest.relations;
       var me = this;
-      this.createDBRecord(bucket,key,record,clientId,function(newrec){
+      this.createDBRecord(storeRequest,clientId,function(newrec){
          // the relations are created in this callback, as we need to have the
          // definite primaryKey value
          var prKeyValue = newrec[me.primaryKey];
-         if(relations && (relations instanceof Array)){
+         if(me.automaticRelations && relations && (relations instanceof Array)){
             var junctionInfo;
             for(var i=0,len=relations.length;i<len;i++){
                junctionInfo = me.getJunctionInfo(bucket,relations[i].bucket);
@@ -125,12 +132,12 @@ global.OrionStore = SC.Object.extend({
       // which makes distributing the changes much easier. This is because it seems rather tricky to distribute the relation
       // data before they are written in the db. With this setup the changes will be distributed around the same time as 
       // the data arrives to the database.
-      if(relations && (relations instanceof Array)){
+      if(automaticRelations && relations && (relations instanceof Array)){
          for(var i=0,l=relations.length;i<l;i++){
             me.updateRelation(storeRequest,record,relations[i],clientId);
          }
       }
-      this.updateDBRecord(bucket,key,record,clientId,function(record){
+      this.updateDBRecord(storeRequest,clientId,function(record){
          // assume data is the updated record
          // merge the relation data with the record
          var currel;
@@ -145,13 +152,13 @@ global.OrionStore = SC.Object.extend({
    deleteRecord: function(storeRequest,clientId,callback){
       var bucket = storeRequest.bucket, key=storeRequest.key, relations = storeRequest.relations;
       // first destroy relations
-      if(relations && (relations instanceof Array)){
+      if(this.automaticRelations && relations && (relations instanceof Array)){
          for(var i=0,len=relations.length;i<len;i++){
             this.destroyRelation(storeRequest,relations[i],clientId); // for the moment, don't provide a callback
          }
       }
       // now delete the actual record
-      this.deleteDBRecord(bucket,key,clientId,callback);
+      this.deleteDBRecord(storeRequest,clientId,callback);
    },
 
    // relation resolving functions (COMPUTED PROPERTIES??)
@@ -229,7 +236,7 @@ global.OrionStore = SC.Object.extend({
       // be this function... In that way relations can be returned in one go
       records = (records instanceof Array)? records: [records];
       var me = this;
-      this.fetchDBRecords(junctionInfo.junctionBucket,function(junctionData){
+      this.fetchDBRecords({bucket: junctionInfo.junctionBucket},function(junctionData){ // imitate sending a storeRequest
          var i,j,recLen=records.length,junctLen=junctionData.length; // indexes and lengths
          var currec, curRecKey,relationKeys, keys = [], data={};
          for(i=0;i<recLen;i++){
@@ -261,7 +268,7 @@ global.OrionStore = SC.Object.extend({
       // check whether junction records need to be deleted or created
       var junctionInfo = this.getJunctionInfo(storeRequest.bucket,relation.bucket);
       var me = this;
-      this.fetchDBRecords(junctionInfo.junctionBucket,function(junctionData){
+      this.fetchDBRecords({bucket:junctionInfo.junctionBucket},function(junctionData){ // fake sending a storeRequest
          var relationKeys = relation.keys.copy();
          var junctionRecs = me._junctionDataFor(storeRequest,junctionInfo,junctionData,true); // get all info on the records
          var relationsIndex,curRelKey;
@@ -309,8 +316,8 @@ global.OrionStore = SC.Object.extend({
          newRelRec = {};
          newRelRec[junctionInfo.modelRelationKey] = masterKey;
          newRelRec[junctionInfo.relationRelationKey] = relationKeys[i];
-         // now save
-         this.createDBRecord(junctionInfo.junctionBucket,noKey,newRelRec,clientId); // don't do callbacks on relations for the moment
+         // now save by faking a storeRequest
+         this.createDBRecord({bucket:junctionInfo.junctionBucket,key:noKey,recordData:newRelRec},clientId); // don't do callbacks on relations for the moment
       }
       if(callback) callback(YES);
    },
@@ -329,7 +336,7 @@ global.OrionStore = SC.Object.extend({
          var curJuncKey;
          for(var i=0,len=junctionRecs.length;i<len;i++){
             curJuncKey=junctionRecs[i][primKey];
-            me.deleteDBRecord(junctionInfo.junctionBucket,curJuncKey,clientId);
+            me.deleteDBRecord({bucket:junctionInfo.junctionBucket,key:curJuncKey},clientId); // fake a storeRequest
          }
          // in this implementation there is no error check...
          if(callback) callback(YES);

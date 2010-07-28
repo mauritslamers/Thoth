@@ -40,8 +40,24 @@ global.OrionRiakStore = OrionStore.extend({
       return newobj;      
    },
    
-   fetchDBRecords: function(resource,callback){
+   /*
+   the storeRequest is an object with the following layout:
+   { bucket: '', 
+     key: '', 
+     conditions: '', 
+     parameters: {}, 
+     recordData: {},
+     relations: [ 
+        { bucket: '', type: 'toOne', propertyName: '', keys: [] }, 
+        { bucket: '', type: 'toMany', propertyName: '', keys: [] } 
+     ] 
+   }
+
+   */
+   
+   fetchDBRecords: function(storeRequest,callback){
       // the callback expects an array of js objects, so make sure that the data has been parsed 
+      var resource = storeRequest.bucket;
       var me = this;
       var fetch = this.db.map({source: 'function(value){ return [value];}'}).run(resource); // this returns a function
       fetch(function(recs,meta){
@@ -62,7 +78,8 @@ global.OrionRiakStore = OrionStore.extend({
       });
    },
 
-   refreshDBRecord: function(resource,key,clientId,callback){
+   refreshDBRecord: function(storeRequest,clientId,callback){
+      var resource = storeRequest.bucket, key = storeRequest.key;
       // the callback expects a record
       var opts = { clientId: clientId};
       var refresh = this.db.get(resource,key,opts);
@@ -81,8 +98,9 @@ global.OrionRiakStore = OrionStore.extend({
       });
    },
 
-   createDBRecord: function(resource,key,data,clientId,callback){
+   createDBRecord: function(storeRequest,clientId,callback){
       // the callback expects the new record
+      var resource = storeRequest.bucket, key = storeRequest.key, data = storeRequest.recordData;
       if(resource && data && clientId){ // don't allow storage without a clientId
          var opts = { clientId: clientId };
          var create = this.db.save(resource,key,data,opts);
@@ -99,7 +117,8 @@ global.OrionRiakStore = OrionStore.extend({
       }
    },
    
-   updateDBRecord: function(resource,key,data,clientId,callback){
+   updateDBRecord: function(storeRequest,clientId,callback){
+      var resource = storeRequest.bucket, key = storeRequest.key, data = storeRequest.recordData;
       // the callback expects the updated record
       if(resource && key && data && clientId){
          var opts = {clientId: clientId};
@@ -116,7 +135,8 @@ global.OrionRiakStore = OrionStore.extend({
       }
    },
    
-   deleteDBRecord: function(resource,key,clientId,callback){
+   deleteDBRecord: function(storeRequest,clientId,callback){
+      var resource = storeRequest.bucket, key = storeRequest.key;
       // check for callbacks.. Often it is not included!
       if(resource && key && clientId){
          var opts = { clientId: clientId };
