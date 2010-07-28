@@ -75,7 +75,7 @@ global.OrionFixturesStore = OrionStore.extend({
       loadedData = (loadedData)? loadedData: this.loadFixtures(bucket);
       var conditions = storeRequest.conditions, parameters = storeRequest.parameters;
       var ret;
-      if(conditions){
+      if(this.filterBySCQuery && conditions){
          ret = this._filterRecordsByQuery(loadedData,conditions,parameters);
       }
       else {
