@@ -464,6 +464,7 @@ global.OrionServer = SC.Object.extend({
          
          The difference is that a normal result is an object { recordResult: [records]}
          and the relations are returned as a { relationSet: { }}
+         
          */
          if(data.recordResult){
             // store the records and the queryinfo in the clients session (if the conditions are not there, the session function 
@@ -530,7 +531,7 @@ global.OrionServer = SC.Object.extend({
       // ("bucketkey" or "query") and the action, server side requests will be made to the client.
       // the server doesn't expect any confirmation back! 
       // the function will not distribute the changes to the originalUser/sessionKeyCombination
-      var matchingUserSessions = this.sessionModule.getMatchingUserSessionsForRecord(record);
+
       //sys.puts(" matching User sessions: " + sys.inspect(matchingUserSessions));
       
       /* 
@@ -559,7 +560,9 @@ global.OrionServer = SC.Object.extend({
       
       When the request is queued, we don't need to do anything else...
       as soon as the connection is restored, all actions will be sent to the client and the sessionCache updated.
-      */
+      */      
+      var matchingUserSessions = this.sessionModule.getMatchingUserSessionsForRecord(record);
+      
       var curUser, curSessionKey, curMatchType, result, createRequest;
       var me=this; // needed because everything below is inside a forEach
       matchingUserSessions.forEach(function(sessionInfo){
@@ -677,9 +680,9 @@ global.OrionServer = SC.Object.extend({
      var me = this;
      if(storeRequest.bucket && storeRequest.key && clientId){
         this.store.updateRecord(storeRequest,clientId,
-           function(val){
-              callback({updateRecordResult: {record: val, returnData: updateRec.returnData}}); // not entirely sure this obj layout is correct
-              me.distributeChanges(val,"update",client.user,client.sessionKey);
+           function(record){
+              callback({updateRecordResult: {record: record, returnData: updateRec.returnData}}); // don't send the relationSet to the client
+              me.distributeChanges(record,"update",client.user,client.sessionKey);
            }
         );
      }

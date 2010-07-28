@@ -121,16 +121,23 @@ global.OrionStore = SC.Object.extend({
       var bucket = storeRequest.bucket, key = storeRequest.key, record = storeRequest.recordData;
       var relations = storeRequest.relations;
       var me = this;
-      this.updateDBRecord(bucket,key,record,clientId,function(data){
-         // assume data is the updated record
-         callback(data);
-      });
-      // update relations
+      // first update relations, because it allows to be sending the new relation data in one go with the record,
+      // which makes distributing the changes much easier
       if(relations && (relations instanceof Array)){
          for(var i=0,l=relations.length;i<l;i++){
-            me.updateRelation(storeRequest,data,relations[i],clientId); // no callback for the moment
+            me.updateRelation(storeRequest,record,relations[i],clientId);
          }
       }
+      this.updateDBRecord(bucket,key,record,clientId,function(record){
+         // assume data is the updated record
+         // merge the relation data with the record
+         var currel;
+         for(var j=0,len=relations.length;j<len;j++){
+            currel = relations[j];
+            record[currel.propertyName] = currel.keys;
+         }
+         callback(record); // now send the record with merged relations
+      });
    },
    
    deleteRecord: function(storeRequest,clientId,callback){
@@ -213,6 +220,9 @@ global.OrionStore = SC.Object.extend({
       // will be returned here.
       // The callback is called with an object: { relationSet: { bucket: junctionInfo.modelBucket, keys: retkeys, propertyName: relation.propertyName, data: {} }}
       // data is an associative array with the primaryKeys as key and the relation array as value
+      
+      // it might be interesting to implement this function as a recursive callback: take a list of relations, and do the first relations fetch, and let the callback
+      // be this function... In that way relations can be returned in one go
       records = (records instanceof Array)? records: [records];
       var me = this;
       this.fetchDBRecords(junctionInfo.junctionBucket,function(junctionData){
@@ -231,7 +241,7 @@ global.OrionStore = SC.Object.extend({
    },
    
    getRelationKeys: function(relation,record,junctionInfo,callback){
-      // this function does more or less the same as createRelationSet, but only for one record
+      // this function does more or less the same as getRelationSet, but only for one record
       // so wrap createRelationSet
       var recordKey = record[this.primaryKey];
       this.getRelationSet(relation,record,junctionInfo,function(relationSet){
