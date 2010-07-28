@@ -38,6 +38,8 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    
    OrionNodeRiakURL: '/socket.io/websocket',
    
+   authSuccessCallback: null, 
+   
    /*
      ========
      WebSocket stuff   
@@ -172,9 +174,11 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    
    onAuthSuccess: function(data){
       // function called when authorisation has been completed successfully
-      console.log('onAuthSuccess called on ' + this);
+      //console.log('onAuthSuccess called on ' + this);
       this.user = data.user;
       this.sessionKey = data.sessionKey;
+      //alert("onAuthSuccess!");
+      this.authSuccessCallback();
    },
    
    onAuthError: function(data){
@@ -731,6 +735,11 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       var requestCacheKey = this._createRequestCacheKey();
       console.log("Trying to refresh data of record storeKey: " + storeKey);
       this._requestCache[requestCacheKey] = { store: store, storeKey: storeKey, recordType: recType, id: recordId, numResponses: numResponses };
+      var bucket = recType.prototype.bucket;
+      if(!bucket){ // prevent doing anything if the bucket property doesn't exist
+         console.log("You tried to refresh a record based on a Model that hasn't a bucket property. Forgot something?");
+         return NO;
+      }
       var request = { 
          refreshRecord: { 
             bucket: recType.prototype.bucket, 

@@ -521,7 +521,10 @@ global.OrionServer = SC.Object.extend({
             callback(ret);
          });
       }
-      else sys.puts("OrionServer received an invalid refreshRecord call.");
+      else {
+        sys.puts("OrionServer received an invalid refreshRecord call:");
+        sys.puts("The offending message is: " + JSON.stringify(message)); 
+      } 
    },
    
    distributeChanges: function(record,action,originalUser,originalSessionKey){
