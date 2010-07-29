@@ -510,12 +510,13 @@ global.OrionServer = SC.Object.extend({
       if(refreshRec.bucket && refreshRec.key){
          this.store.refreshRecord(storeRequest,clientId,function(val){ 
             // this function can be called with different results: with record data and with relations
-            var ret;
+            var ret, relSet;
             if(val.refreshResult){
                var rec = val.refreshResult;
                ret = { refreshRecordResult: { bucket: rec.bucket, key: rec.key, record: rec, returnData: refreshRec.returnData } };
             }
             if(val.relationSet){
+               relSet = (val.relationSet instanceof Array)? val.relationSet: [val.relationSet]; // make it into an array if it isn't one already
                ret = { refreshRecordResult: { relationSet: val.relationSet, returnData: refreshRec.returnData }};
             }
             callback(ret);
