@@ -132,7 +132,7 @@ global.OrionStore = SC.Object.extend({
       // which makes distributing the changes much easier. This is because it seems rather tricky to distribute the relation
       // data before they are written in the db. With this setup the changes will be distributed around the same time as 
       // the data arrives to the database.
-      if(automaticRelations && relations && (relations instanceof Array)){
+      if(this.automaticRelations && relations && (relations instanceof Array)){
          for(var i=0,l=relations.length;i<l;i++){
             me.updateRelation(storeRequest,record,relations[i],clientId);
          }
@@ -209,10 +209,13 @@ global.OrionStore = SC.Object.extend({
       var i, juncLen=junctionData.length;
       var modelKeyName = junctionInfo.modelRelationKey;
       var relationKeyName = junctionInfo.relationRelationKey;
-      var curRecKey = record[this.primaryKey];
+      // create a fallback to "key" if the id doesn't exist. Necessary for refreshRecord requests, in that case record is the request information
+      var curRecKey = record[this.primaryKey]? record[this.primaryKey]: record.key; 
+      //sys.log("Trying to find a junction record with key " + modelKeyName + " and value " + curRecKey);
       var ret = [], curJuncRec;
       for(i=0;i<juncLen;i++){
          curJuncRec = junctionData[i];
+         //sys.log("Parsing junction record: " + JSON.stringify(curJuncRec));
          if(curJuncRec[modelKeyName] == curRecKey){
             if(allInfo){
                ret.push(curJuncRec);
@@ -236,12 +239,16 @@ global.OrionStore = SC.Object.extend({
       // be this function... In that way relations can be returned in one go
       records = (records instanceof Array)? records: [records];
       var me = this;
+      var primKey = this.primaryKey;
+      //sys.log("retrieving relation data for " + JSON.stringify(junctionInfo));
       this.fetchDBRecords({bucket: junctionInfo.junctionBucket},function(junctionData){ // imitate sending a storeRequest
          var i,j,recLen=records.length,junctLen=junctionData.length; // indexes and lengths
          var currec, curRecKey,relationKeys, keys = [], data={};
          for(i=0;i<recLen;i++){
             currec = records[i];
-            curRecKey = currec[me.primaryKey];
+            //sys.log("Parsing record: " + JSON.stringify(currec));
+            // create the same fallback as for _junctionDataFor to "key" if the primaryKey doesn't exist on the record
+            curRecKey = currec[primKey]? currec[primKey]: currec.key; 
             relationKeys = me._junctionDataFor(currec,junctionInfo,junctionData); 
             keys.push(curRecKey);
             data[curRecKey] = relationKeys;
