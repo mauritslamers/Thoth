@@ -517,7 +517,7 @@ global.OrionServer = SC.Object.extend({
             }
             if(val.relationSet){
                relSet = (val.relationSet instanceof Array)? val.relationSet: [val.relationSet]; // make it into an array if it isn't one already
-               ret = { refreshRecordResult: { relationSet: val.relationSet, returnData: refreshRec.returnData }};
+               ret = { refreshRecordResult: { relationSet: relSet, returnData: refreshRec.returnData }};
             }
             callback(ret);
          });
