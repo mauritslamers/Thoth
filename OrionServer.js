@@ -403,7 +403,7 @@ global.OrionServer = SC.Object.extend({
       The fetch request becomes something like this:
       
       { fetch: { bucket: '', conditions:'', parameters: '', 
-                  relations: [ { property: '', type: 'toOne', bucket: ''}, { property: '', type: 'toMany', bucket: ''}]}}
+                  relations: [ { propertyName: '', type: 'toOne', bucket: ''}, { propertyName: '', type: 'toMany', bucket: ''}]}}
       
       From this data the server can create a set of messages to be sent to the client
       The client can know beforehand how many messages to receive (one for the main record data, and one for each relation)

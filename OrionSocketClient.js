@@ -57,14 +57,16 @@ global.OrionSocketClient = SC.Object.extend({
 
 	send: function(message){
 	   //sys.puts("Send called on OrionSocketClient with message " + sys.inspect(message));
-		if (!this.isConnected || !(this.connection.readyState === 'open' ||
-				this.connection.readyState === 'writeOnly')) {
-			return this._queue(message);
+		if (!this.isConnected || !(this.connection.readyState === 'open' || this.connection.readyState === 'writeOnly')) {
+			//return this._queue(message);
+			sys.log("whoops? trying to send something without an open connection, and it hasn't been caught by OrionServer...? This is not good!");
 		}
-		
+		else {
+		   this._write(JSON.stringify([message]));
+   		//return this;
+		}
 		//this._write(JSON.stringify({messages: [message]}));
-		this._write(JSON.stringify([message]));
-		return this;
+		
 	},
 
 	broadcast: function(message){
