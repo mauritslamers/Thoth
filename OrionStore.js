@@ -125,16 +125,18 @@ global.OrionStore = SC.Object.extend({
    },
    
    updateRecord: function(storeRequest,clientId,callback){
+      //console.log('updateRecord called on the ONR store');
       var bucket = storeRequest.bucket, key = storeRequest.key, record = storeRequest.recordData;
       var relations = storeRequest.relations;
-      var me = this;
       // first update relations, because it allows to be sending the new relation data in one go with the record,
       // which makes distributing the changes much easier. This is because it seems rather tricky to distribute the relation
       // data before they are written in the db. With this setup the changes will be distributed around the same time as 
       // the data arrives to the database.
       if(this.automaticRelations && relations && (relations instanceof Array)){
+         console.log('updating relations: ');
          for(var i=0,l=relations.length;i<l;i++){
-            me.updateRelation(storeRequest,record,relations[i],clientId);
+            console.log(JSON.stringify(relations[i]));
+            this.updateRelation(storeRequest,record,relations[i],clientId);
          }
       }
       this.updateDBRecord(storeRequest,clientId,function(record){
@@ -274,18 +276,22 @@ global.OrionStore = SC.Object.extend({
       // so get all relation data for the current record and relation
       // check whether junction records need to be deleted or created
       var junctionInfo = this.getJunctionInfo(storeRequest.bucket,relation.bucket);
+      //console.log("Junction info: " + JSON.stringify(junctionInfo));
       var me = this;
       this.fetchDBRecords({bucket:junctionInfo.junctionBucket},function(junctionData){ // fake sending a storeRequest
          var relationKeys = relation.keys.copy();
+         //console.log('starting with relations: ' + JSON.stringify(relationKeys));
          var junctionRecs = me._junctionDataFor(storeRequest,junctionInfo,junctionData,true); // get all info on the records
          var relationsIndex,curRelKey;
          for(var i=0,l=junctionRecs.length;i<l;i++){
             curRelKey = junctionRecs[i][junctionInfo.relationRelationKey];
             relationsIndex = relationKeys.indexOf(curRelKey);
             if(relationsIndex == -1){ // not found, so delete the record
-               me.deleteDBRecord(junctionInfo.junctionBucket,junctionRecs[i][me.primaryKey]);
+               me.deleteDBRecord({bucket: junctionInfo.junctionBucket, key:junctionRecs[i][me.primaryKey]}, clientId);
             }
             else {
+               //console.log('deleting item at relationsIndex ' + relationsIndex);
+               //console.log('value of item is ' + relationKeys[relationsIndex]);
                relationKeys.removeAt(relationsIndex);
             }
          }
@@ -294,13 +300,14 @@ global.OrionStore = SC.Object.extend({
          // maybe createRelation could be used with only the keys left... but for the moment 
          // we do it manually
          var numrelations = relationKeys.length;
-         var newRelRec, masterKey = storeRequest.key;
+         var newRelRec, masterKey = storeRequest.key? storeRequest.key: record.key;
          var noKey = null; 
+         //console.log('creating new relation records for ' + JSON.stringify(relationKeys));
          for(var j=0;j<numrelations;j++){
             newRelRec = {};
             newRelRec[junctionInfo.modelRelationKey] = masterKey;
-            newRelRec[junctionInfo.relationRelationKey] = relationKeys[i];
-            me.createDBRecord(junctionInfo.junctionBucket,noKey,newRelRec,clientId); // don't do callbacks on relations for the moment
+            newRelRec[junctionInfo.relationRelationKey] = relationKeys[j];
+            me.createDBRecord({bucket:junctionInfo.junctionBucket,key:noKey,recordData:newRelRec},clientId); // don't do callbacks on relations for the moment
          }
          // it might be a nice idea to have a callback here that creates a new relationSet which can be 
          // distributed...
