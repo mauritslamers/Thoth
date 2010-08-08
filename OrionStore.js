@@ -300,7 +300,7 @@ global.OrionStore = SC.Object.extend({
             newRelRec = {};
             newRelRec[junctionInfo.modelRelationKey] = masterKey;
             newRelRec[junctionInfo.relationRelationKey] = relationKeys[i];
-            this.createDBRecord(junctionInfo.junctionBucket,noKey,newRelRec,clientId); // don't do callbacks on relations for the moment
+            me.createDBRecord(junctionInfo.junctionBucket,noKey,newRelRec,clientId); // don't do callbacks on relations for the moment
          }
          // it might be a nice idea to have a callback here that creates a new relationSet which can be 
          // distributed...
@@ -323,7 +323,7 @@ global.OrionStore = SC.Object.extend({
          newRelRec = {};
          newRelRec[junctionInfo.modelRelationKey] = masterKey;
          newRelRec[junctionInfo.relationRelationKey] = relationKeys[i];
-         // now save by faking a storeRequest
+         // now save by making up a storeRequest
          this.createDBRecord({bucket:junctionInfo.junctionBucket,key:noKey,recordData:newRelRec},clientId); // don't do callbacks on relations for the moment
       }
       if(callback) callback(YES);
