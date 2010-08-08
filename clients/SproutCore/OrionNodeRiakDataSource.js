@@ -941,6 +941,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    */
    
    onUpdateRecordResult: function(data){
+      console.log("Received update: " + JSON.stringify(data));
       // different implementation of the onUpdateRecordResult
       // as ONR can also return the data in one go
       // which seems the most simple and forward solution

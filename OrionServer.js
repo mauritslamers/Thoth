@@ -295,7 +295,7 @@ global.OrionServer = SC.Object.extend({
       	onClientMessage: function(message, client){
       	   sys.puts("onClientMessage in OrionServer called");
       	   if(message.fetch) me.onFetch.call(me,message,client,function(data){ client.send(data);});
-      	   if(message.refreshRecord) me.onRefresh.call(me,message,client,function(data) {client.send(data);});
+      	   if(message.refreshRecord) me.onRefresh.call(me,message,client,function(data){ client.send(data);});
       	   if(message.createRecord) me.onCreate.call(me,message,client,function(data){ client.send(data);});
       	   if(message.updateRecord) me.onUpdate.call(me,message,client,function(data){ client.send(data);});
       	   if(message.deleteRecord) me.onDelete.call(me,message,client,function(data){ client.send(data);});
@@ -691,7 +691,9 @@ global.OrionServer = SC.Object.extend({
         this.store.updateRecord(storeRequest,clientId,
            function(record){
               // the relation set is already on the record
-              callback({updateRecordResult: {record: record, returnData: updateRec.returnData}}); 
+              var ret = {updateRecordResult: {record: record, returnData: updateRec.returnData}};
+              sys.log('OrionServer: sending updateRecordResult: ' + JSON.stringify(ret));
+              callback(ret); 
               me.distributeChanges(record,"update",client.user,client.sessionKey);
            }
         );
