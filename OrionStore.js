@@ -125,7 +125,7 @@ global.OrionStore = SC.Object.extend({
    },
    
    updateRecord: function(storeRequest,clientId,callback){
-      //console.log('updateRecord called on the ONR store');
+      console.log('updateRecord called on the ONR store');
       var bucket = storeRequest.bucket, key = storeRequest.key, record = storeRequest.recordData;
       var relations = storeRequest.relations;
       // first update relations, because it allows to be sending the new relation data in one go with the record,
@@ -147,6 +147,8 @@ global.OrionStore = SC.Object.extend({
             currel = relations[j];
             record[currel.propertyName] = currel.keys;
          }
+         // check if key is saved on the record
+         if(!record.key) record.key = key;
          callback(record); // now send the record with merged relations
       });
    },
