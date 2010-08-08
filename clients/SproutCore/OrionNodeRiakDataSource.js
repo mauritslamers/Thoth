@@ -81,7 +81,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       //console.log('Send function called on OrionNodeRiak Datasource');
       if(this._webSocket && val){
          var msg = JSON.stringify(val);
-         //console.log('Trying to send message: ' + msg);
+         console.log('Trying to send message: ' + msg);
          //return this._webSocket.send(msg);
          this._webSocket.send(msg); // cannot return anything as the calling function is most likely GC'ed already
       }
@@ -221,7 +221,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       // this is the part where interaction with the store comes into play
       // let's create handlers for every type of action ...
       // if you need extra calls, add 'em here
-      console.log("Received data message: " + JSON.stringify(data));
+      //console.log("Received data message: " + JSON.stringify(data));
       if(data.createRecord) this.onPushedCreateRecord(data);
       if(data.updateRecord) this.onPushedUpdateRecord(data);
       if(data.deleteRecord) this.onPushedDeleteRecord(data);
@@ -326,6 +326,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    
    loadRecord: function(store,recordType,storeKey,dataHash,isComplete) {
       // copy this behaviour from dataSource did complete and pushRetrieve
+      //SC.RunLoop.begin();
       var id = dataHash.id || dataHash.key; // when id doesn't exist, try key
       var status, K = SC.Record;
       if(id){
@@ -360,6 +361,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       else {
          throw "Whoops, uploading a record without ID??";
       }
+      //SC.RunLoop.end();
    },
    
    /*
@@ -568,6 +570,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       var ret = [];
       // walk through the records one by one and look whether there are relations
       numrelations = relationSet.length;
+      //console.log("trying to add " + numrelations + " relations");
       for(i=0,numrecords=records.length;i<numrecords;i++){
          curRec = records[i];
          curRecKey = curRec.key;
@@ -724,7 +727,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    retrieveRecord: function(store,storeKey,id){
       var recType = store.recordTypeFor(storeKey);
       if(!id){
-         console.log("It seems you are trying to retrieve a record from a relation of which the opposite side hasn't been loaded yet");
+         //console.log("It seems you are trying to retrieve a record from a relation of which the opposite side hasn't been loaded yet");
          // retrieve all records of this type instead?
       }
       var relations = this._getRelationsArray(recType);
@@ -733,7 +736,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       // we will receive multiple responses
       var numResponses = (relations && (relations instanceof Array))? 1 + relations.length: 1;
       var requestCacheKey = this._createRequestCacheKey();
-      console.log("Trying to refresh data of record storeKey: " + storeKey);
+      //console.log("Trying to refresh data of record storeKey: " + storeKey);
       this._requestCache[requestCacheKey] = { store: store, storeKey: storeKey, recordType: recType, id: recordId, numResponses: numResponses };
       var bucket = recType.prototype.bucket;
       if(!bucket){ // prevent doing anything if the bucket property doesn't exist
@@ -742,7 +745,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       }
       var request = { 
          refreshRecord: { 
-            bucket: recType.prototype.bucket, 
+            bucket: bucket, 
             key: recordId, 
             relations: relations, 
             returnData: { requestCacheKey: requestCacheKey }
@@ -753,6 +756,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    },
    
    onRefreshRecordResult: function(data){
+      console.log("Received update: " + JSON.stringify(data));
       // function to process the data from the server when a refreshRecord call has been made to the server
       // we have a few cases here that are similar too the fetch request
       // we cannot just write the stuff to the store, as we have separate messages for relation stuff
@@ -795,6 +799,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
          // in case the record has already arrived, and relation data is being received
          // merge the relation data with the record and update the data in the store
          mergedData = this._processRelationSet([curRequestCache.record],relationSet)[0];
+         //console.log("We received a relationSet, so updating the record with the following data: " + JSON.stringify(mergedData));
          isComplete = (curRequestCache.numResponses < 2)? YES: NO;   
          this.loadRecord(curRequestCache.store,curRequestCache.recordType,curRequestCache.storeKey,mergedData,isComplete);
          this._requestCache[requestCacheKey].numResponses--;
@@ -848,6 +853,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    },
    
    updateRecord: function(store,storeKey,params){
+      console.log('ONR data source updateRecord called');
       // function to send updates to ONR.
       // ONR supports separate relation updates from record information
       // SC doesn't at the moment, so we'll just do everything together
@@ -871,6 +877,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
           //relations separated from the record data         
        }
        var numResponses = (relations.length>0)? 1 + relations.length: 1;
+       console.log('expecting ' + numResponses + ' responses for this update');
        var requestCacheKey = this._createRequestCacheKey();
        this._requestCache[requestCacheKey] = { store: store, storeKey: storeKey, params: params, recordKey: key, numResponses: numResponses };
        var returnData = { requestCacheKey: requestCacheKey };
@@ -879,14 +886,15 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
        return YES;
    },
    
-   
+/*   
    onUpdateRecordResult: function(data){
+      console.log("Received update: " + JSON.stringify(data));
       // function to process the data from the server when an updateRecord call has been made to the server     
       // unlike the createRecord the relations update are a separate message, so we have to take that into account
       var updateResult = data.updateRecordResult;
       var requestCacheKey = updateResult.returnData.requestCacheKey;
       var requestCache = this._requestCache[requestCacheKey];
-      var record = requestCache.record;
+      var record = updateResult.record;
       var unsavedRelations = requestCache.unsavedRelations;
       var relationSet = updateResult.relationSet;
       var store = requestCache.store;
@@ -902,16 +910,18 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
          }
          unsavedRelations = this._requestCache[requestCacheKey].unsavedRelations; // be sure to update the unsavedRelations
          this._requestCache[requestCacheKey].numResponses--;
+         console.log('subtracting one from numResponses, responses left: ' + this._requestCache[requestCacheKey].numResponses);
       }
       if(record){
          // there is a record in the update result message
          // check whether there are unsaved relations, unsavedRelations can be safely used, as it was updated
-         mergedRecord  = (unsavedRelations)? this._processRelationSet([record],unsavedRelations)[0]: record;
+         mergedRecord  = unsavedRelations? this._processRelationSet([record],unsavedRelations)[0]: record;
          this._requestCache[requestCacheKey].record = mergedRecord;
          //loadRecord: function(store,recordType,storeKey,dataHash,isComplete) {
          isComplete = (this._requestCache[requestCacheKey].numResponses < 2)? YES: NO;
          this.loadRecord(store,recType,requestCache.storeKey,mergedRecord, isComplete);
          this._requestCache[requestCacheKey].numResponses--;
+         console.log('subtracting one from numResponses, responses left: ' + this._requestCache[requestCacheKey].numResponses);
       }
       if(relationSet && this._requestCache[requestCacheKey].record){
          // update the record with the relation set arriving
@@ -920,12 +930,28 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
          isComplete = (this._requestCache[requestCacheKey].numResponses < 2)? YES: NO;
          this.loadRecord(store,recType,requestCache.storeKey,mergedRecord, isComplete);
          this._requestCache[requestCacheKey].numResponses--;
+         console.log('subtracting one from numResponses, responses left: ' + this._requestCache[requestCacheKey].numResponses);
       }
       if(this._requestCache[requestCacheKey].numResponses === 0){
          // destroy the cache
          // no need for dataSourceDidComplete as our loadRecord has already taken care...
          delete this._requestCache[requestCacheKey];
       }
+   },
+   */
+   
+   onUpdateRecordResult: function(data){
+      // different implementation of the onUpdateRecordResult
+      // as ONR can also return the data in one go
+      // which seems the most simple and forward solution
+      var updateRecordResult = data.updateRecordResult;
+      var recordData = updateRecordResult.record;
+      var requestCacheKey = updateRecordResult.returnData.requestCacheKey;
+      var requestCache = this._requestCache[requestCacheKey];
+      var store = requestCache.store;
+      var storeKey = requestCache.storeKey;
+      store.dataSourceDidComplete(storeKey,recordData);
+      delete this._requestCache[requestCacheKey];
    },
    
    destroyRecord: function(store,storeKey,params){

@@ -133,10 +133,10 @@ global.OrionStore = SC.Object.extend({
       // data before they are written in the db. With this setup the changes will be distributed around the same time as 
       // the data arrives to the database.
       if(this.automaticRelations && relations && (relations instanceof Array)){
-         console.log('updating relations: ');
          for(var i=0,l=relations.length;i<l;i++){
-            console.log(JSON.stringify(relations[i]));
-            this.updateRelation(storeRequest,record,relations[i],clientId);
+            var curRel = relations[i];
+            this.updateRelation(storeRequest,record,curRel,clientId); 
+            // no need for a callback
          }
       }
       this.updateDBRecord(storeRequest,clientId,function(record){
@@ -311,10 +311,8 @@ global.OrionStore = SC.Object.extend({
          }
          // it might be a nice idea to have a callback here that creates a new relationSet which can be 
          // distributed...
-         if(callback) callback(YES);
+         if(callback) callback(relation);
       });
-      
-      
    },
    
    createRelation: function(storeRequest,record,relation,clientId,callback){

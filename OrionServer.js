@@ -472,6 +472,7 @@ global.OrionServer = SC.Object.extend({
             me.sessionModule.storeRecords(client.user,client.sessionKey,data.recordResult);
             me.sessionModule.storeQuery(client.user,client.sessionKey,fetchinfo.bucket,fetchinfo.conditions,fetchinfo.parameters);
             // send off the data
+            sys.log('Sending dataset for bucket ' + fetchinfo.bucket);
             callback({ 
                fetchResult: { 
                   bucket: fetchinfo.bucket, 
@@ -481,6 +482,7 @@ global.OrionServer = SC.Object.extend({
             });            
          }
          if(data.relationSet){
+            sys.log('Sending relationset for bucket ' + fetchinfo.bucket);
             callback({
                fetchResult: {
                   relationSet: [ data.relationSet ],
@@ -688,7 +690,8 @@ global.OrionServer = SC.Object.extend({
      if(storeRequest.bucket && storeRequest.key && clientId){
         this.store.updateRecord(storeRequest,clientId,
            function(record){
-              callback({updateRecordResult: {record: record, returnData: updateRec.returnData}}); // don't send the relationSet to the client
+              // the relation set is already on the record
+              callback({updateRecordResult: {record: record, returnData: updateRec.returnData}}); 
               me.distributeChanges(record,"update",client.user,client.sessionKey);
            }
         );
