@@ -116,8 +116,13 @@ global.OrionStore = SC.Object.extend({
             var junctionInfo;
             for(var i=0,len=relations.length;i<len;i++){
                junctionInfo = me.getJunctionInfo(bucket,relations[i].bucket);
-               me.createRelation(storeRequest,newrec,relations[i],clientId); // don't do callbacks here for the moment
-               newrec[relations[i].propertyName] = relations[i].keys;
+               if(relations.keys && (relations.keys instanceof Array) && (relations.keys.length > 0)){
+                  me.createRelation(storeRequest,newrec,relations[i],clientId); // don't do callbacks here for the moment                  
+                  newrec[relations[i].propertyName] = relations[i].keys;
+               }
+               else {
+                  newrec[relations[i].propertyName] = [];
+               }
             }
          }
          callback(newrec);
