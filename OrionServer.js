@@ -218,22 +218,6 @@ global.OrionServer = SC.Object.extend({
    
    socketIOBuffer: [],
    
-   _modelCache: [],
-   
-   _loadModels: function(){
-      var models = this.models;
-      var me = this;
-      models.forEach(function(v){
-         if(v.isClass){
-            var resource = v.prototype.resource? v.prototype.resource: v.prototype.bucket;
-            if(resource){
-               me._modelCache[resource] = v;  
-            }
-         }
-      });
-      //sys.puts('modelCache: ' + sys.inspect(this._modelCache));
-   },
-   
    server: null,
          
    _startServer: function(){
@@ -458,41 +442,46 @@ global.OrionServer = SC.Object.extend({
          parameters: fetchinfo.parameters,
          relations: fetchinfo.relations 
       };
-      me.store.fetch(storeRequest,clientId,function(data){ 
-         /*
-         The functionality of this callback function is going to change quite a bit... 
-         We need to be aware that in case of relations this function is not only called for the record results
-         but also called once for every relation
-         
-         The difference is that a normal result is an object { recordResult: [records]}
-         and the relations are returned as a { relationSet: { }}
-         
-         */
-         if(data.recordResult){
-            // store the records and the queryinfo in the clients session (if the conditions are not there, the session function 
-            // will automatically convert it into a bucket only query)
-            me.sessionModule.storeRecords(client.user,client.sessionKey,data.recordResult);
-            me.sessionModule.storeQuery(client.user,client.sessionKey,fetchinfo.bucket,fetchinfo.conditions,fetchinfo.parameters);
-            // send off the data
-            sys.log('Sending dataset for bucket ' + fetchinfo.bucket);
-            callback({ 
-               fetchResult: { 
-                  bucket: fetchinfo.bucket, 
-                  records: data.recordResult, 
-                  returnData: fetchinfo.returnData
-               }
-            });            
-         }
-         if(data.relationSet){
-            sys.log('Sending relationset for bucket ' + fetchinfo.bucket);
-            callback({
-               fetchResult: {
-                  relationSet: [ data.relationSet ],
-                  returnData: fetchinfo.returnData
-               }
-            });
-         }
-      });
+      
+      var fetchRequest = function(){
+         me.store.fetch(storeRequest,clientId,function(data){ 
+            /*
+            The functionality of this callback function is going to change quite a bit... 
+            We need to be aware that in case of relations this function is not only called for the record results
+            but also called once for every relation
+
+            The difference is that a normal result is an object { recordResult: [records]}
+            and the relations are returned as a { relationSet: { }}
+
+            */
+            if(data.recordResult){
+               // store the records and the queryinfo in the clients session (if the conditions are not there, the session function 
+               // will automatically convert it into a bucket only query)
+               me.sessionModule.storeRecords(client.user,client.sessionKey,data.recordResult);
+               me.sessionModule.storeQuery(client.user,client.sessionKey,fetchinfo.bucket,fetchinfo.conditions,fetchinfo.parameters);
+               // send off the data
+               sys.log('Sending dataset for bucket ' + fetchinfo.bucket);
+               callback({ 
+                  fetchResult: { 
+                     bucket: fetchinfo.bucket, 
+                     records: data.recordResult, 
+                     returnData: fetchinfo.returnData
+                  }
+               });            
+            }
+            if(data.relationSet){
+               sys.log('Sending relationset for bucket ' + fetchinfo.bucket);
+               callback({
+                  fetchResult: {
+                     relationSet: [ data.relationSet ],
+                     returnData: fetchinfo.returnData
+                  }
+               });
+            }
+         });
+      } 
+      
+      
    },
    
    onRefresh: function(message,client,callback){
