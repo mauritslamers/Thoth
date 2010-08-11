@@ -562,6 +562,13 @@ global.OrionServer = SC.Object.extend({
             
             }
          }; // end refreshAction
+         
+         if(this.policyModule){
+            this.policyModule.checkPolicy(storeRequest,storeRequest.recordData,refreshAction);
+         }
+         else {
+            refreshAction(YES);
+         }
       }
       else {
         sys.log("OrionServer received an invalid refreshRecord call:");

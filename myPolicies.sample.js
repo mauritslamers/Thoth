@@ -12,7 +12,7 @@ exports.policyPath = './policies';
 
 // define which roles do not require policy checking: "root admin".w()
 // if you leave this emply every role will be checked
-exports.noPolicyCheckForRoles: "root admin".w();
+exports.noPolicyCheckForRoles = "root admin".w();
 
 // define the resources you want to be able to load. Just define the resources.
 // example exports.enabledPolicies = "sample1 sample2".w() 

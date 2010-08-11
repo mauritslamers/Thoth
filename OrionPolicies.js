@@ -18,6 +18,7 @@ or a changed record with certain information filtered out or changed.
 */
 if(!global.SC) require('./sc/runtime/core');
 //require('./OrionPolicyModel');
+var sys=require('sys');
 
 global.OrionPolicies = SC.Object.extend({
    
@@ -33,7 +34,9 @@ global.OrionPolicies = SC.Object.extend({
    
    readPolicyFile: function(){
       var policyFileName = this.get('policyFile');
+      sys.log("OrionPolicy: readPolicyFile: policyFileName = " + this.policyFile);
       if(policyFileName){
+         sys.log('OrionPolicy: Reading policies file');
          var policyFile = require(policyFileName);
          var enabledPolicies = policyFile.enabledPolicies; 
          var policyDir = policyFile.policyPath;
@@ -50,7 +53,8 @@ global.OrionPolicies = SC.Object.extend({
                if(tmpPol && tmpPol[curPolName]) ret[curPolName] = tmpPol[curPolName];
             }
             // set the policy cache
-            this.set('policyCache', ret);
+            sys.log('OrionPolicy: Setting policyCache');
+            this.policyCache = ret;
          }
       } 
    },
@@ -98,17 +102,28 @@ global.OrionPolicies = SC.Object.extend({
    
    checkPolicy: function(storeRequest,record,callback){
       // function to check whether the current record and storeRequest are allowed...
+      if(!this.policyCache) this.readPolicyFile(); // load if not already done...
       var resource = storeRequest.bucket;
       var action = storeRequest.action;
-      var policies = this.get('policyCache');
-      var noPolCheck = this.get('noPolicyCheckForRoles');
-      if(noPolCheck.indexOf(storeRequest.userData.role) === -1){ 
+      var policies = this.policyCache;
+      // load policies if not yet loaded
+      var noPolCheck = this.noPolicyCheckForRoles;
+      if(noPolCheck.indexOf(storeRequest.client.userData.role) === -1){ 
+         // we need to catch requests for which there is no policy
+         if(!policies[resource]){
+            sys.log("OrionPolicies: You have been trying to perform a " + action + " action on " + resource + " but no policies have been defined for this resource");
+            callback(NO);
+            return;
+         }
+         
          // check whether record happens to be an array, we have to pass all records through the policy check
          // which is kind of difficult, and most importantly, ALL policy checks MUST call the callback, otherwise 
          // the data will never arrive at the client!!
          if(record instanceof Array){
+            sys.log('running checkPolicy: inside array stuff');
             var me = this, cacheKey = this.generateCacheKey();
             var curRec, polCheck;
+            
             if(record.length !== 0){
                this._tmpRecordCache[cacheKey]=[];
                this._tmpRecordCacheCount[cacheKey]=record.length;
@@ -120,6 +135,7 @@ global.OrionPolicies = SC.Object.extend({
             }
          }
          else {
+            sys.log('OrionPolicy: request not an array request...')
             policies[resource][action](storeRequest,storeRequest.client.userData,record,callback);   
          }
       } 
