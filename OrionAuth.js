@@ -18,11 +18,11 @@ global.OrionAuth = SC.Object.extend({
       // the callback is called with an object with an authenticated and isRoot property
       var ret = {
          authenticated: NO,
-         isRoot: NO
+         role: null
       };
       if(user === this.rootUser){
          if(this.rootPassword === passwd) {
-            ret.isRoot = YES;
+            ret.role = "root";
             ret.authenticated = YES;
          }
       }

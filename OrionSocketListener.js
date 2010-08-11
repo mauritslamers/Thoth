@@ -199,6 +199,7 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 	               // session key set
 	               client.isAuthenticated = YES;
 	               client.user = user; // set the user
+	               client.userData = authresult; // set all user data
 	               // move the client object from the unAuthenticatedClients to the authenticatedClients
 	               this.unAuthenticatedClients.removeObject(client);
 	               this.authenticatedClients.push(client);

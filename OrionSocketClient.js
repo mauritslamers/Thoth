@@ -18,6 +18,10 @@ global.OrionSocketClient = SC.Object.extend({
    
    sessionKey: "",  // property to be able to store the session info, to enable 
                      //the same user to do both websocket as other types of requests
+                     
+   user: null, // the user name of the connected and authenticated user
+   
+   userData: null, // the user data as known to the authentication system
 	
 	setOption: function(key, value){
 	   this.options[key] = value;

@@ -59,7 +59,7 @@ global.OrionDBStore = OrionStore.extend({
                   'Content-Length': dataToSend.length
                };
                request = httpClient.request(method,url,headers);
-               sys.log('OrionDBStore: sending data: ' + dataToSend);
+               sys.log('OrionDBStore: sending data to back end: ' + dataToSend);
                request.write(dataToSend);
             } 
             else {
@@ -74,7 +74,7 @@ global.OrionDBStore = OrionStore.extend({
                   dataStore += data;
                });
                response.addListener('end',function(){
-                  //if(data) sys.log("Sending completed data to callback: " + dataStore);
+                  if(data && (method === 'POST')) sys.log("Sending completed data to callback: " + dataStore);
                   callback(dataStore);
                });
             });            
@@ -130,8 +130,12 @@ global.OrionDBStore = OrionStore.extend({
          console.log('Creating a record.');
          console.log(' storeRequest = ' + JSON.stringify(storeRequest));
          var request = this.createOrionDBHTTPRequest('POST',storeRequest.bucket,null,storeRequest.recordData,function(data){
-            if(callback) callback(JSON.parse(data));
-            });
+            sys.log("OrionDB createDBRecord callback called");
+            var objData = JSON.parse(data);
+            if(!objData) sys.log('Whoops, OrionDB returns something that cannot be converted to JSON??');
+            var ret = (objData instanceof Array)? objData[0]: objData;
+            callback(ret);
+         });
          request();
          //console.log("Implement this function");
          //callback(null);

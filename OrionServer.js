@@ -29,7 +29,6 @@ that is that the websocket connection uses a format that is comparable to the ht
 
 */
 global.OrionServer = SC.Object.extend({
-   models: [], // an array of model objects
    
    port: 8080,
    
@@ -41,7 +40,9 @@ global.OrionServer = SC.Object.extend({
    
    authModule: null,
    
-   sessionModule: OrionSession.create({ sessionName: 'OrionServerTest' }),
+   policyModule: null,
+   
+   sessionModule: null, 
    
    store: null, // place to bind the store / data source to
    
@@ -253,7 +254,7 @@ global.OrionServer = SC.Object.extend({
         
       - in addition the server should check on permissions, that is whether the user actually has read permission 
         on the record that has been changed/deleted/created
-        
+        Implementing a policy system instead
    */
    
    _attachWebSocket: function(){
@@ -262,8 +263,7 @@ global.OrionServer = SC.Object.extend({
       //this.socketIO = socketIoServer.listen(this.server, {
       //sys.puts("server before socketio init: " + this.server);
       
-      // first create because we need to able to refer to it later
-      // I had create().start() but that didn't return the socketlistenerobject ... oops ...
+      // first create because we need to able to refer to it later, as start() doesn't return the object
       this.socketIO = OrionSocketListener.create({OrionServer: this }); 
       this.socketIO.start(this.server,{
       	onClientConnect: function(client){
@@ -286,15 +286,12 @@ global.OrionServer = SC.Object.extend({
       	}
       	
       });
-      //sys.puts("When attaching the socketIO server, this refers to " + sys.inspect(this));
    },
    
    start: function(){
       sys.puts('Starting OrionServer');
       // load the models, push the resource names inside the model cache
       // commented out as they are not used atm
-      //this._loadModels();
-      //sys.puts('DB Models loaded...');
       this._startServer();
       // start the server
 
@@ -423,7 +420,7 @@ global.OrionServer = SC.Object.extend({
       the storeRequest is an object with the following layout:
       { bucket: '', 
         key: '', // not used by fetch
-        action: '', //action performed by the request: create, update, refresh, or destroy
+        action: '', // action performed by the request: create, update, refresh, or destroy
         conditions: '', // not used by the individual record functions (create,refresh,update,delete)
         parameters: {}, // not used by the individual record functions (create,refresh,update,delete)
         relations: [ 
@@ -442,47 +439,58 @@ global.OrionServer = SC.Object.extend({
          parameters: fetchinfo.parameters,
          relations: fetchinfo.relations 
       };
-      
-      var fetchRequest = function(){
-         me.store.fetch(storeRequest,clientId,function(data){ 
-            /*
-            The functionality of this callback function is going to change quite a bit... 
-            We need to be aware that in case of relations this function is not only called for the record results
-            but also called once for every relation
+      // first define the function. The idea is that no policy is the same as always allow
+      // so the function is defined as if there is always a policy system, so it can be
+      // used as a policyModule callback
 
-            The difference is that a normal result is an object { recordResult: [records]}
-            and the relations are returned as a { relationSet: { }}
+      var fetchRequest = function(policyResponse){
+         if(policyResponse){ // if any of YES or "retry"
+            me.store.fetch(storeRequest,clientId,function(data){ 
+               /*
+               The functionality of this callback function is going to change quite a bit... 
+               We need to be aware that in case of relations this function is not only called for the record results
+               but also called once for every relation
 
-            */
-            if(data.recordResult){
-               // store the records and the queryinfo in the clients session (if the conditions are not there, the session function 
-               // will automatically convert it into a bucket only query)
-               me.sessionModule.storeRecords(client.user,client.sessionKey,data.recordResult);
-               me.sessionModule.storeQuery(client.user,client.sessionKey,fetchinfo.bucket,fetchinfo.conditions,fetchinfo.parameters);
-               // send off the data
-               sys.log('Sending dataset for bucket ' + fetchinfo.bucket);
-               callback({ 
-                  fetchResult: { 
-                     bucket: fetchinfo.bucket, 
-                     records: data.recordResult, 
-                     returnData: fetchinfo.returnData
-                  }
-               });            
-            }
-            if(data.relationSet){
-               sys.log('Sending relationset for bucket ' + fetchinfo.bucket);
-               callback({
-                  fetchResult: {
-                     relationSet: [ data.relationSet ],
-                     returnData: fetchinfo.returnData
-                  }
-               });
-            }
-         });
+               The difference is that a normal result is an object { recordResult: [records]}
+               and the relations are returned as a { relationSet: { }}
+
+               */
+               // in case the policyResponse is "retry", we need to re-evaluate the policy
+               if(data.recordResult){
+                  var result = (policyResponse === 'retry')? me.policyModule.checkPolicy(storeRequest,client)
+                  // store the records and the queryinfo in the clients session (if the conditions are not there, the session function 
+                  // will automatically convert it into a bucket only query)
+                  me.sessionModule.storeRecords(client.user,client.sessionKey,data.recordResult);
+                  me.sessionModule.storeQuery(client.user,client.sessionKey,fetchinfo.bucket,fetchinfo.conditions,fetchinfo.parameters);
+                  // send off the data
+                  sys.log('Sending dataset for bucket ' + fetchinfo.bucket);
+                  callback({ 
+                     fetchResult: { 
+                        bucket: fetchinfo.bucket, 
+                        records: data.recordResult, 
+                        returnData: fetchinfo.returnData
+                     }
+                  });            
+               }
+               if(data.relationSet){
+                  sys.log('Sending relationset for bucket ' + fetchinfo.bucket);
+                  callback({
+                     fetchResult: {
+                        relationSet: [ data.relationSet ],
+                        returnData: fetchinfo.returnData
+                     }
+                  });
+               }
+            });
+            
+         }
+         else {
+            // not allowed... what to do? add a response option? {fetchError: { error: 'not allowed', returnData: fetchinfo.returnData}} ?
+         }
       } 
       
-      
    },
+
    
    onRefresh: function(message,client,callback){
       // the onRefresh function is called to do the back end call and return the
