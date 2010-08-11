@@ -320,8 +320,19 @@ global.OrionServer = SC.Object.extend({
    { fetchResult: { bucket: '', records: [], returnData: {} }}
    { createRecordResult: { bucket: '', key: '', record: {}, returnData: {} } }
    { updateRecordResult: { bucket: '', key: '', record: {}, returnData: {} } }
-   { deleteRecordResult: {}, returnData: {} }
+   { deleteRecordResult: { bucket: '', key: '', returnData: {} } }
    { refreshRecordResult: { bucket: '', key: '', record: {}, returnData: {} } }
+   
+   // returned by the server when the request was denied based on policy
+   { fetchError:   { errorCode: 0, returnData: {} }}
+   { createRecordError:  { errorCode: 0, returnData: {} }}
+   { updateRecordError:  { errorCode: 0, returnData: {} }}
+   { deleteRecordError:  { errorCode: 0, returnData: {} }}
+   { refreshRecordError: { errorCode: 0, returnData: {} }}
+   
+   errorCodes:
+   0 - Access denied on policy
+   
    */
 
 
@@ -501,7 +512,8 @@ global.OrionServer = SC.Object.extend({
          } // end if(policyResponse)
          else {
             // not allowed... what to do? add a response option? {fetchError: { error: 'not allowed', returnData: fetchinfo.returnData}} ?
-            sys.log('Whoops... not allowed and no response to the client?');
+            callback({fetchError: { errorCode: 0, returnData: fetchinfo.returnData }});
+            //sys.log('Whoops... not allowed and no response to the client?');
          }
       };
       
@@ -561,6 +573,9 @@ global.OrionServer = SC.Object.extend({
                   }
                });            
             
+            }
+            else {
+               callback({ refreshRecordError: { errorCode: 0, returnData: refreshRec.returnData }});
             }
          }; // end refreshAction
          
@@ -735,6 +750,7 @@ global.OrionServer = SC.Object.extend({
             }
             else {
                // to be filled in with a not allowed kind of response
+               callback({createRecordError: { errorCode: 0, returnData: createRec.returnData }});            
             }     
          };
       
@@ -775,6 +791,7 @@ global.OrionServer = SC.Object.extend({
            }
            else {
               // we need to do something about this callback issue
+              callback({updateRecordError: { errorCode: 0, returnData: updateRec.returnData }});
            }
         };
         
@@ -817,6 +834,7 @@ global.OrionServer = SC.Object.extend({
                });
             }
             else {
+               callback({deleteRecordError: { errorCode: 0, returnData: deleteRec.returnData }});
                // think of some access denied stuff
             }
          };
