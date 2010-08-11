@@ -408,6 +408,19 @@ global.OrionServer = SC.Object.extend({
       in alphabetised order. 
    */
    
+   /*
+   the storeRequest is an object with the following layout:
+   { bucket: '', 
+     key: '', // not used by fetch
+     action: '', // action performed by the request: create, update, refresh, or destroy
+     client: '', // all client data 
+     conditions: '', // not used by the individual record functions (create,refresh,update,delete)
+     parameters: {}, // not used by the individual record functions (create,refresh,update,delete)
+     relations: [ 
+        { bucket: '', type: 'toOne', propertyName: '' }, 
+        { bucket: '', type: 'toMany', propertyName: ''} 
+     ] 
+   } */
 
    onFetch: function(message,client,callback){
       // the onFetch function is called to do the back end call and return the data
@@ -416,18 +429,7 @@ global.OrionServer = SC.Object.extend({
       // client / sessionKey combination requested.
       // this function uses a callback to return the result of the fetch so the function can
       // be used as you would like...
-      /*
-      the storeRequest is an object with the following layout:
-      { bucket: '', 
-        key: '', // not used by fetch
-        action: '', // action performed by the request: create, update, refresh, or destroy
-        conditions: '', // not used by the individual record functions (create,refresh,update,delete)
-        parameters: {}, // not used by the individual record functions (create,refresh,update,delete)
-        relations: [ 
-           { bucket: '', type: 'toOne', propertyName: '' }, 
-           { bucket: '', type: 'toMany', propertyName: ''} 
-        ] 
-      } */
+
                
       var fetchinfo = message.fetch; 
       var me = this;
@@ -435,44 +437,58 @@ global.OrionServer = SC.Object.extend({
       var storeRequest = { 
          bucket: fetchinfo.bucket, 
          action: 'refresh',
+         client: client,
          conditions: fetchinfo.conditions, 
          parameters: fetchinfo.parameters,
          relations: fetchinfo.relations 
       };
+      
+      // whaaa
+      // the problem with fetch is that is an array, which is rather nasty
+      
+      
       // first define the function. The idea is that no policy is the same as always allow
       // so the function is defined as if there is always a policy system, so it can be
       // used as a policyModule callback
+
+      var sendRecordData = function(records){ // the policy module takes care of handling record arrays, so we can expect an array of 
+         // properly adjusted records...
+         // store the records and the queryinfo in the clients session (if the conditions are not there, the session function 
+         // will automatically convert it into a bucket only query)
+         me.sessionModule.storeRecords(client.user,client.sessionKey,records);
+         me.sessionModule.storeQuery(client.user,client.sessionKey,fetchinfo.bucket,fetchinfo.conditions,fetchinfo.parameters);
+         // send off the data
+         sys.log('Sending dataset for bucket ' + fetchinfo.bucket);
+         callback({ 
+            fetchResult: { 
+               bucket: fetchinfo.bucket, 
+               records: records, 
+               returnData: fetchinfo.returnData
+            }
+         });
+      };
 
       var fetchRequest = function(policyResponse){
          if(policyResponse){ // if any of YES or "retry"
             me.store.fetch(storeRequest,clientId,function(data){ 
                /*
-               The functionality of this callback function is going to change quite a bit... 
                We need to be aware that in case of relations this function is not only called for the record results
-               but also called once for every relation
-
+               but also called once for every relation.
                The difference is that a normal result is an object { recordResult: [records]}
                and the relations are returned as a { relationSet: { }}
-
                */
                // in case the policyResponse is "retry", we need to re-evaluate the policy
                if(data.recordResult){
-                  var result = (policyResponse === 'retry')? me.policyModule.checkPolicy(storeRequest,client)
-                  // store the records and the queryinfo in the clients session (if the conditions are not there, the session function 
-                  // will automatically convert it into a bucket only query)
-                  me.sessionModule.storeRecords(client.user,client.sessionKey,data.recordResult);
-                  me.sessionModule.storeQuery(client.user,client.sessionKey,fetchinfo.bucket,fetchinfo.conditions,fetchinfo.parameters);
-                  // send off the data
-                  sys.log('Sending dataset for bucket ' + fetchinfo.bucket);
-                  callback({ 
-                     fetchResult: { 
-                        bucket: fetchinfo.bucket, 
-                        records: data.recordResult, 
-                        returnData: fetchinfo.returnData
-                     }
-                  });            
+                  if(policyResponse === 'retry'){
+                     me.policyModule.checkPolicy(storeRequest,data.recordResult,sendRecordData);
+                  }
+                  else {
+                     sendRecordData(data.recordResult);
+                  }
                }
                if(data.relationSet){
+                  // in case of a relationSet, don't do policyChecks...
+                  // if the policyChecks are implemented properly even the ids of the records couldn't lead to  leaking data
                   sys.log('Sending relationset for bucket ' + fetchinfo.bucket);
                   callback({
                      fetchResult: {
@@ -480,17 +496,23 @@ global.OrionServer = SC.Object.extend({
                         returnData: fetchinfo.returnData
                      }
                   });
-               }
-            });
-            
-         }
+               } // end if(data.relationSet)
+            });   
+         } // end if(policyResponse)
          else {
             // not allowed... what to do? add a response option? {fetchError: { error: 'not allowed', returnData: fetchinfo.returnData}} ?
+            sys.log('Whoops... not allowed and no response to the client?');
          }
-      } 
+      };
       
+      // now do the actual data check
+      if(this.policyModule){
+         this.policyModule.checkPolicy(storeRequest,null,fetchRequest);
+      }       
+      else {
+         fetchRequest(YES);
+      }
    },
-
    
    onRefresh: function(message,client,callback){
       // the onRefresh function is called to do the back end call and return the
@@ -503,6 +525,7 @@ global.OrionServer = SC.Object.extend({
       var storeRequest = { 
          bucket: refreshRec.bucket, 
          action: 'refresh',
+         client: client,
          key: refreshRec.key,
          relations: refreshRec.relations
       };
@@ -510,23 +533,39 @@ global.OrionServer = SC.Object.extend({
       var me = this;
       var clientId = [client.user,client.sessionKey].join("_");
       if(refreshRec.bucket && refreshRec.key){
-         this.store.refreshRecord(storeRequest,clientId,function(val){ 
-            // this function can be called with different results: with record data and with relations
-            var ret, relSet;
-            if(val.refreshResult){
-               var rec = val.refreshResult;
-               ret = { refreshRecordResult: { bucket: rec.bucket, key: rec.key, record: rec, returnData: refreshRec.returnData } };
-            }
-            if(val.relationSet){
-               relSet = (val.relationSet instanceof Array)? val.relationSet: [val.relationSet]; // make it into an array if it isn't one already
-               ret = { refreshRecordResult: { relationSet: relSet, returnData: refreshRec.returnData }};
-            }
+         var sendRecordData = function(rec){
+            me.sessionModule.storeBucketKey(client.user,client.sessionKey,rec.bucket, rec.key);
+            var ret = { refreshRecordResult: { bucket: rec.bucket, key: rec.key, record: rec, returnData: refreshRec.returnData } };
             callback(ret);
-         });
+         };
+         
+         var refreshAction = function(policyResponse){
+            if(policyResponse){ // either 'retry' or YES on first attempt
+               this.store.refreshRecord(storeRequest,clientId,function(val){ 
+                  // this function can be called with different results: with record data and with relations
+                  var ret, relSet;
+                  if(val.refreshResult){
+                     var rec = val.refreshResult;
+                     if(policyResponse === 'retry'){
+                        me.policyModule.checkPolicy(storeRequest,rec,sendRecordData);
+                     }
+                     else {
+                        sendRecordData(rec);
+                     }
+                  }
+                  if(val.relationSet){
+                     relSet = (val.relationSet instanceof Array)? val.relationSet: [val.relationSet]; // make it into an array if it isn't one already
+                     ret = { refreshRecordResult: { relationSet: relSet, returnData: refreshRec.returnData }};
+                  }
+                  callback(ret);
+               });            
+            
+            }
+         }; // end refreshAction
       }
       else {
-        sys.puts("OrionServer received an invalid refreshRecord call:");
-        sys.puts("The offending message is: " + JSON.stringify(message)); 
+        sys.log("OrionServer received an invalid refreshRecord call:");
+        sys.log("The offending message is: " + JSON.stringify(message)); 
       } 
    },
    
@@ -645,6 +684,7 @@ global.OrionServer = SC.Object.extend({
                   }
                   break;
                default: // whoops?? 
+                  sys.log("OrionServer: This is the default action catcher on the distribution. Seeing this error is NOT good!");
                   break;
             }                     
          }    
@@ -662,19 +702,39 @@ global.OrionServer = SC.Object.extend({
          bucket: createRec.bucket, 
          key: createRec.key,
          action: 'create',
+         client: client,
          recordData: createRec.record,
          relations: createRec.relations
       };
       var clientId = [client.user,client.sessionKey].join("_");
       var me = this;
       if(storeRequest.bucket && clientId){
-         this.store.createRecord(storeRequest,clientId,
-            function(val){
-               // first update the original client and then update the others
-               callback({createRecordResult: {record: val, returnData: createRec.returnData}});
-               me.distributeChanges(val,"create",client.user,client.sessionKey);
+         // create lambda function to be able to do both policy and non-policy
+         var createAction = function(policyResponse){
+            if(policyResponse){ // either YES or adjusted record
+               var rec = (policyResponse === YES)? storeRequest.recordData: policyResponse;
+               storeRequest.recordData = rec;
+               this.store.createRecord(storeRequest,clientId,
+                  function(rec){
+                     rec = me.policyModule.filterRecord? me.policyModule.filterRecord(rec): rec;
+                     me.sessionModule.storeBucketKey(client.user,client.sessionKey,rec.bucket, rec.key);
+                     // first update the original client and then update the others
+                     callback({createRecordResult: {record: rec, returnData: createRec.returnData}});
+                     me.distributeChanges(rec,"create",client.user,client.sessionKey);
+                  }
+               );
             }
-         );
+            else {
+               // to be filled in with a not allowed kind of response
+            }     
+         };
+      
+         if(this.policyModule){
+            this.policyModule.checkPolicy(storeRequest,storeRequest.recordData,createAction);
+         }
+         else {
+            createAction(YES);
+         }
       }
    },
    
@@ -684,21 +744,37 @@ global.OrionServer = SC.Object.extend({
         bucket: updateRec.bucket, 
         key: updateRec.key,
         action: 'update',
+        client: client,
         recordData: updateRec.record,
         relations: updateRec.relations
      };
      var clientId = [client.user,client.sessionKey].join("_");
      var me = this;
      if(storeRequest.bucket && storeRequest.key && clientId){
-        this.store.updateRecord(storeRequest,clientId,
-           function(record){
-              // the relation set is already on the record
-              var ret = {updateRecordResult: {record: record, returnData: updateRec.returnData}};
-              sys.log('OrionServer: sending updateRecordResult: ' + JSON.stringify(ret));
-              callback(ret); 
-              me.distributeChanges(record,"update",client.user,client.sessionKey);
+        var updateAction = function(policyResponse){
+           if(policyResponse){
+              this.store.updateRecord(storeRequest,clientId,
+                 function(record){
+                    record = me.policyModule.filterRecords? me.policyModule.filterRecord(storeRequest,record): record;
+                    // the relation set is already on the record
+                    var ret = {updateRecordResult: {record: record, returnData: updateRec.returnData}};
+                    sys.log('OrionServer: sending updateRecordResult: ' + JSON.stringify(ret));
+                    callback(ret); 
+                    me.distributeChanges(record,"update",client.user,client.sessionKey);
+                 }
+              );                         
            }
-        );
+           else {
+              // we need to do something about this callback issue
+           }
+        };
+        
+        if(this.policyModule){
+           this.policyModule.checkPolicy(storeRequest,storeRequest.recordData,updateAction);
+        }
+        else {
+           updateAction(YES);
+        }
      }
    },
    
@@ -719,13 +795,28 @@ global.OrionServer = SC.Object.extend({
             bucket: bucket, 
             key: key,
             action: 'destroy',
+            client: client,
             recordData: record,
             relations: deleteRec.relations
          };
-         this.store.deleteRecord(storeRequest, clientId, function(val){
-            callback({deleteRecordResult: { bucket: bucket, key: key, record: record, returnData: deleteRec.returnData}});
-            me.distributeChanges(record,"delete",client.user,client.sessionKey);
-         });
+         var destroyAction = function(policyResponse){
+            if(policyResponse){
+               this.store.deleteRecord(storeRequest, clientId, function(val){
+                  me.sessionModule.deleteBucketKey(client.user,client.sessionKey,bucket,key);
+                  callback({deleteRecordResult: { bucket: bucket, key: key, record: record, returnData: deleteRec.returnData}});
+                  me.distributeChanges(record,"delete",client.user,client.sessionKey);
+               });
+            }
+            else {
+               // think of some access denied stuff
+            }
+         }
+         if(this.policyModule){
+            this.policyModule.checkPolicy(storeRequest,storeRequest.recordData,destroyAction);
+         }
+         else {
+            destroyAction(YES);
+         }
       }
       else {
          sys.puts("Trying to destroy record without providing the proper record data!");

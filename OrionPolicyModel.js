@@ -25,7 +25,7 @@ global.OrionPolicyModel = SC.Object.extend({
       This function can be called twice, once before the db request and once after the db request.
       The difference can be detected by the record value being undefined.
       Whether it is called after the db request depends on the return value of the first call.
-      Accepted callback value is either YES, NO or a filtered record
+      Accepted callback value is either YES, NO, 'retry' or a filtered record
    */
    refresh: function(storeRequest,user,record,callback){
       callback(this.defaultResponse);
@@ -37,5 +37,14 @@ global.OrionPolicyModel = SC.Object.extend({
    */
    destroy: function(storeRequest,user,record,callback){
       callback(this.defaultResponse);
+   },
+   
+   /* 
+      This function can be used by the other functions above, but also needs to be
+      available separately to be able to filter data.
+      In contrast with the other functions, this function should return immediately
+   */
+   filter: function(storeRequest,user,record){
+      return record;
    }
 });

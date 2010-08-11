@@ -11,8 +11,8 @@ exports.resource = OrionPolicyModel.create({
 })
 
 where resource is the name of your database table or bucket
-and action is either 'create','update','refresh' or 'destroy'
-the ONR fetch action will also check the refresh option
+and action is either 'create','update','refresh', 'destroy' or 'filter'
+the ONR fetch action will use the refresh action
 
 The return value of every function can be:
 - YES:      Access of this action type to the record or resource is allowed
@@ -64,5 +64,13 @@ exports.sample = OrionPolicyModel.create({
    */
    destroy: function(storeRequest,user,record,callback){
       callback(this.defaultResponse);
+   },
+   
+   /* 
+      This function can be used by the other functions above, but also needs to be
+      available separately to be able to filter data.
+   */
+   filter: function(storeRequest,user,record,callback){
+      callback(record);
    }
 });

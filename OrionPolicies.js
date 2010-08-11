@@ -23,6 +23,8 @@ global.OrionPolicies = SC.Object.extend({
    
    policyFile: null, // the file defining the enabled policies
    
+   filterRecords: NO, // whether a record should be filtered by the server when creating a new record or updating an existing one 
+   
    policyCache: null, // where the policy rule objects are cached
    
    // prevent a policy check if the users role is one of these roles, if a noPolicyCheckForRoles is defined in the
@@ -53,16 +55,81 @@ global.OrionPolicies = SC.Object.extend({
       } 
    },
    
-   checkPolicy: function(storeRequest,user,record,callback){
+   _tmpRecordCache: {},
+   _tmpRecordCacheCount: {},
+   
+   // this seems a bit complicated, but we have to be aware that multiple requests can coincide, so we have to separate 
+   // all different requests, for which we use cache keys. the function expects the checkPolicy function to 
+   // create the array on the _tmpRecordCache first
+   // it is even more complicated than I thought at first
+   createPolicyCheckCallback: function(record,cacheKey,callback){
+      var me = this;
+      return function(val){
+         if(val === YES){ // no changes to the record
+            me._tmpRecordCache[cacheKey].push(record);
+         }
+         if(val && val !== 'retry') me._tmpRecordCache[cacheKey].push(val); // anything else, not being NO or retry, so push the updated record
+         me._tmpRecordCacheCount[cacheKey]--;
+         if(me._tmpRecordCacheCount[cacheKey] === 0){
+            // if this is the last record, send the entire array to the callback
+            var records = me._tmpRecordCache[cacheKey];
+            delete me._tmpRecordCache[cacheKey]; // delete the old contents
+            delete me._tmpRecordCacheCount[cacheKey];
+            callback(records);
+         }
+      };
+   },
+   
+   generateCacheKey: function(){
+      // the idea for this method was copied from the php site: 
+      // http://www.php.net/manual/en/function.session-regenerate-id.php#60478
+      var keyLength = 32,
+          keySource = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+          keySourceLength = keySource.length + 1, // we need to add one, to make sure the last character will be used in generating the key
+          ret = [],
+          curCharIndex = 0;
+      
+      for(var i=0;i<=keyLength;i++){
+         curCharIndex = Math.floor(Math.random()*keySourceLength);
+         ret.push(keySource[curCharIndex]);
+      }
+      return ret.join('');
+   },
+   
+   checkPolicy: function(storeRequest,record,callback){
       // function to check whether the current record and storeRequest are allowed...
       var resource = storeRequest.bucket;
       var action = storeRequest.action;
       var policies = this.get('policyCache');
       var noPolCheck = this.get('noPolicyCheckForRoles');
-      if(noPolCheck.indexOf(user.role) === -1){ 
-         policies[resource][action](storeRequest,user,record,callback);
+      if(noPolCheck.indexOf(storeRequest.userData.role) === -1){ 
+         // check whether record happens to be an array, we have to pass all records through the policy check
+         // which is kind of difficult, and most importantly, ALL policy checks MUST call the callback, otherwise 
+         // the data will never arrive at the client!!
+         if(record instanceof Array){
+            var me = this, cacheKey = this.generateCacheKey();
+            var curRec, polCheck;
+            if(record.length !== 0){
+               this._tmpRecordCache[cacheKey]=[];
+               this._tmpRecordCacheCount[cacheKey]=record.length;
+               for(var i=0,len=record.length;i<len;i++){
+                  curRec = record[i];
+                  polCheck = policies[resource][action];
+                  polCheck(storeRequest,storeRequest.client.userData,curRec,this.createPolicyCheckCallBack(curRec,cacheKey,callback));
+               }               
+            }
+         }
+         else {
+            policies[resource][action](storeRequest,storeRequest.client.userData,record,callback);   
+         }
       } 
-      else callback(YES); // if the users role is in the noPolicyCheck, just allow
+      else callback(YES); // if the users role is in the noPolicyCheck, just allow. Otherwise the policy settings take over (which is default not to send anything).
+   },
+   
+   filterRecord: function(storeRequest,record){
+      var resource = storeRequest.bucket, action = storeRequest.action;
+      var policies = this.get('policyCache');
+      return policies[resource][action](storeRequest, storeRequest.client.userData,record);
    }
    
 });

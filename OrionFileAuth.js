@@ -20,8 +20,7 @@ global.OrionFileAuth = OrionAuth.extend({
    // checkAuth has to return immediately, it should not be done using a callback
    checkAuth: function(user,passwd,passwdIsMD5){
       if(!this._authData){
-         var fn = ['./',this.fileName].join('');
-         var data = require(fn); // the data should already be in the right format
+         var data = require(this.fileName); // the data should already be in the right format
          this._authData = data.users;
       }
       // so the auth data is loaded, do a check
