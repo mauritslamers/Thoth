@@ -541,7 +541,7 @@ global.OrionServer = SC.Object.extend({
          
          var refreshAction = function(policyResponse){
             if(policyResponse){ // either 'retry' or YES on first attempt
-               this.store.refreshRecord(storeRequest,clientId,function(val){ 
+               me.store.refreshRecord(storeRequest,clientId,function(val){ 
                   // this function can be called with different results: with record data and with relations
                   var ret, relSet;
                   if(val.refreshResult){
