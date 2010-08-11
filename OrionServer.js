@@ -277,7 +277,7 @@ global.OrionServer = SC.Object.extend({
       	},
 
       	onClientMessage: function(message, client){
-      	   sys.puts("onClientMessage in OrionServer called");
+      	   //sys.puts("onClientMessage in OrionServer called");
       	   if(message.fetch) me.onFetch.call(me,message,client,function(data){ client.send(data);});
       	   if(message.refreshRecord) me.onRefresh.call(me,message,client,function(data){ client.send(data);});
       	   if(message.createRecord) me.onCreate.call(me,message,client,function(data){ client.send(data);});
@@ -520,7 +520,7 @@ global.OrionServer = SC.Object.extend({
       // other clients know. For consistency, let's store the record in the session
       // information anyway to update the timestamp, maybe it can have some nice 
       // purpose in the future
-      sys.puts("OrionServer onRefresh called");
+      sys.log("OrionServer onRefresh called");
       var refreshRec = message.refreshRecord;
       var storeRequest = { 
          bucket: refreshRec.bucket, 
@@ -533,9 +533,10 @@ global.OrionServer = SC.Object.extend({
       var me = this;
       var clientId = [client.user,client.sessionKey].join("_");
       if(refreshRec.bucket && refreshRec.key){
+         
          var sendRecordData = function(rec){
-            me.sessionModule.storeBucketKey(client.user,client.sessionKey,rec.bucket, rec.key);
-            var ret = { refreshRecordResult: { bucket: rec.bucket, key: rec.key, record: rec, returnData: refreshRec.returnData } };
+            me.sessionModule.storeBucketKey(client.user,client.sessionKey, refreshRec.bucket, rec.key);
+            var ret = { refreshRecordResult: { bucket: refreshRec.bucket, key: rec.key, record: rec, returnData: refreshRec.returnData } };
             callback(ret);
          };
          
@@ -556,8 +557,8 @@ global.OrionServer = SC.Object.extend({
                   if(val.relationSet){
                      relSet = (val.relationSet instanceof Array)? val.relationSet: [val.relationSet]; // make it into an array if it isn't one already
                      ret = { refreshRecordResult: { relationSet: relSet, returnData: refreshRec.returnData }};
+                     callback(ret);
                   }
-                  callback(ret);
                });            
             
             }
@@ -723,10 +724,11 @@ global.OrionServer = SC.Object.extend({
                storeRequest.recordData = rec;
                this.store.createRecord(storeRequest,clientId,
                   function(rec){
-                     rec = me.policyModule.filterRecord? me.policyModule.filterRecord(rec): rec;
+                     rec = me.policyModule.filterRecord? me.policyModule.filterRecord(storeRequest,rec): rec;
                      me.sessionModule.storeBucketKey(client.user,client.sessionKey,rec.bucket, rec.key);
                      // first update the original client and then update the others
                      callback({createRecordResult: {record: rec, returnData: createRec.returnData}});
+                     
                      me.distributeChanges(rec,"create",client.user,client.sessionKey);
                   }
                );
@@ -817,7 +819,7 @@ global.OrionServer = SC.Object.extend({
             else {
                // think of some access denied stuff
             }
-         }
+         };
          if(this.policyModule){
             this.policyModule.checkPolicy(storeRequest,storeRequest.recordData,destroyAction);
          }
