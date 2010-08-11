@@ -439,6 +439,7 @@ global.OrionServer = SC.Object.extend({
       the storeRequest is an object with the following layout:
       { bucket: '', 
         key: '', // not used by fetch
+        action: '', //action performed by the request: create, update, refresh, or destroy
         conditions: '', // not used by the individual record functions (create,refresh,update,delete)
         parameters: {}, // not used by the individual record functions (create,refresh,update,delete)
         relations: [ 
@@ -452,6 +453,7 @@ global.OrionServer = SC.Object.extend({
       var clientId = [client.user,client.sessionKey].join("_");
       var storeRequest = { 
          bucket: fetchinfo.bucket, 
+         action: 'refresh',
          conditions: fetchinfo.conditions, 
          parameters: fetchinfo.parameters,
          relations: fetchinfo.relations 
@@ -503,6 +505,7 @@ global.OrionServer = SC.Object.extend({
       var refreshRec = message.refreshRecord;
       var storeRequest = { 
          bucket: refreshRec.bucket, 
+         action: 'refresh',
          key: refreshRec.key,
          relations: refreshRec.relations
       };
@@ -661,6 +664,7 @@ global.OrionServer = SC.Object.extend({
       var storeRequest = { 
          bucket: createRec.bucket, 
          key: createRec.key,
+         action: 'create',
          recordData: createRec.record,
          relations: createRec.relations
       };
@@ -682,6 +686,7 @@ global.OrionServer = SC.Object.extend({
      var storeRequest = { 
         bucket: updateRec.bucket, 
         key: updateRec.key,
+        action: 'update',
         recordData: updateRec.record,
         relations: updateRec.relations
      };
@@ -716,6 +721,7 @@ global.OrionServer = SC.Object.extend({
          var storeRequest = { 
             bucket: bucket, 
             key: key,
+            action: 'destroy',
             recordData: record,
             relations: deleteRec.relations
          };
