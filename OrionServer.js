@@ -739,7 +739,7 @@ global.OrionServer = SC.Object.extend({
                storeRequest.recordData = rec;
                me.store.createRecord(storeRequest,clientId,
                   function(rec){
-                     rec = me.policyModule.filterRecord? me.policyModule.filterRecord(storeRequest,rec): rec;
+                     rec = (me.policyModule && me.policyModule.filterRecords)? me.policyModule.filterRecord(storeRequest,rec): rec;
                      me.sessionModule.storeBucketKey(client.user,client.sessionKey,rec.bucket, rec.key);
                      // first update the original client and then update the others
                      callback({createRecordResult: {record: rec, returnData: createRec.returnData}});
@@ -780,7 +780,7 @@ global.OrionServer = SC.Object.extend({
            if(policyResponse){
               me.store.updateRecord(storeRequest,clientId,
                  function(record){
-                    record = me.policyModule.filterRecords? me.policyModule.filterRecord(storeRequest,record): record;
+                    record = (me.policyModule && me.policyModule.filterRecords)? me.policyModule.filterRecord(storeRequest,record): record;
                     // the relation set is already on the record
                     var ret = {updateRecordResult: {record: record, returnData: updateRec.returnData}};
                     sys.log('OrionServer: sending updateRecordResult: ' + JSON.stringify(ret));
