@@ -166,7 +166,7 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 	},
 	
 	_authRequest: function(data, client){
-	   // this function combines a few things: actual auth and in case the aut isn't successful, it 
+	   // this function combines a few things: actual auth and in case the auth isn't successful, it 
 	   // returns an appropriate error message to the client
 	   var OrionServer = this.OrionServer;
 	   if(OrionServer){
@@ -178,41 +178,45 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 	         var passwdIsMD5 = data.auth.passwdIsMD5;
 	         var receivedSessionKey = data.auth.sessionKey;
 	         if(user && passwd){
-	            var authresult = authModule.checkAuth(user,passwd,passwdIsMD5);
-	            if(authresult){
-	               // positive auth, request sessionkey
-	               // interesting experiment: does array.indexOf(obj) still find our client object
-	               // even with extra info put on it? SC should... 
-	               
-	               // we need to take into account that a user authenticates again after a disconnection
-	               // in that case, the authentication request should contain the "old" session key
-	               // to be able to resume the previous actions and to update the client accordingly
-	               // with data still in store
-	               var sessionKeyOnly = YES;
-	               if(receivedSessionKey){
-	                  // check session
-	                  var sessionExists = sessionModule.checkSession(user,receivedSessionKey,sessionKeyOnly);
-	                  // if sessionExists for the sessionkey, set the session key of the client to the receivedSessionKey
-	                  client.sessionKey = sessionExists? receivedSessionKey: sessionModule.createSession(user,sessionKeyOnly);
-	               }
-	               else client.sessionKey = sessionModule.createSession(user,sessionKeyOnly);
-	               // session key set
-	               client.isAuthenticated = YES;
-	               client.user = user; // set the user
-	               client.userData = authresult; // set all user data
-	               // move the client object from the unAuthenticatedClients to the authenticatedClients
-	               this.unAuthenticatedClients.removeObject(client);
-	               this.authenticatedClients.push(client);
-	               this._authSuccessMsg(client); // send the user the session key
-	               // now send the client the request queue, if it exists
-	               this._sendRequestQueue(client);
-	               sys.log("OrionSocketListener: Client " + client.user + " authenticated, sessionKey: " + client.sessionKey);
-	               return YES; 
-	            }
-	            else {
-	               this._authErrorMsg(client, "Invalid username and password combination");
-	               return NO;
-	            }
+	            var me = this;
+	            var authCallback = function(authresult){
+   	            if(authresult){
+   	               // positive auth, request sessionkey
+   	               // interesting experiment: does array.indexOf(obj) still find our client object
+   	               // even with extra info put on it? SC should... 
+
+   	               // we need to take into account that a user authenticates again after a disconnection
+   	               // in that case, the authentication request should contain the "old" session key
+   	               // to be able to resume the previous actions and to update the client accordingly
+   	               // with data still in store
+   	               var sessionKeyOnly = YES;
+   	               if(receivedSessionKey){
+   	                  // check session
+   	                  var sessionExists = sessionModule.checkSession(user,receivedSessionKey,sessionKeyOnly);
+   	                  // if sessionExists for the sessionkey, set the session key of the client to the receivedSessionKey
+   	                  client.sessionKey = sessionExists? receivedSessionKey: sessionModule.createSession(user,sessionKeyOnly);
+   	               }
+   	               else client.sessionKey = sessionModule.createSession(user,sessionKeyOnly);
+   	               // session key set
+   	               client.isAuthenticated = YES;
+   	               client.user = user; // set the user
+   	               client.userData = authresult; // set all user data
+   	               // move the client object from the unAuthenticatedClients to the authenticatedClients
+   	               me.unAuthenticatedClients.removeObject(client);
+   	               me.authenticatedClients.push(client);
+   	               me._authSuccessMsg(client); // send the user the session key
+   	               // now send the client the request queue, if it exists
+   	               me._sendRequestQueue(client);
+   	               sys.log("OrionSocketListener: Client " + client.user + " authenticated, sessionKey: " + client.sessionKey);
+   	               return YES; 
+   	            }
+   	            else {
+   	               me._authErrorMsg(client, "Invalid username and password combination");
+   	               return NO;
+   	            }	               
+	            }; // end auth callback function
+	            authModule.checkAuth(user,passwd,passwdIsMD5,authCallback);
+	            
 	         }
 	         else{
 	            this._authErrorMsg(client, "Either the username or password was not found in the authentication request");
