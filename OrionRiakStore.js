@@ -12,7 +12,7 @@ global.OrionRiakStore = OrionStore.extend({
    db: new riak.getClient(),
    
    createObjectFromFetchData: function(rec,metadata){
-      var newobj = { bucket: rec.bucket, id: rec.key, key: rec.key , vclock: rec.vclock};
+      var newobj = { bucket: rec.bucket, key: rec.key , vclock: rec.vclock};
       var curvals = rec.values;
       if(curvals){
          // assume for the moment curvals is an array with length 1
@@ -86,7 +86,6 @@ global.OrionRiakStore = OrionStore.extend({
       refresh(function(rec,meta){
          rec.bucket = resource;
          rec.key = key;
-         rec.id = key;
          rec.vclock = meta.headers["x-riak-vclock"];
          rec.links = [meta.headers["link"]];
          rec.etag = meta.headers["etag"]; // this is small caps for some strange reason
