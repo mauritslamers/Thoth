@@ -37,27 +37,27 @@ global.OrionStore = SC.Object.extend({
    
    createDBRecord: function(storeRequest,clientId,callback){
       // the callback expects the new record
-      console.log("Implement this function");
+      console.log("This function needs an implementation. If you are seeing this message, you are probably using the base OrionStore instead of a store having a DB-implementation.");
    },
    
    updateDBRecord: function(storeRequest,clientId,callback){
       // the callback expects the updated record
-      console.log("Implement this function");
+      console.log("This function needs an implementation. If you are seeing this message, you are probably using the base OrionStore instead of a store having a DB-implementation.");
    },
    
    deleteDBRecord: function(storeRequest,clientId,callback){
       // check for callbacks.. Often it is not included!
-      console.log("Implement this function");
+      console.log("This function needs an implementation. If you are seeing this message, you are probably using the base OrionStore instead of a store having a DB-implementation.");
    },
    
    fetchDBRecords: function(storeRequest,callback){
       // the callback expects an array of js objects, so make sure that the data has been parsed 
-      console.log("Implement this function");
+      console.log("This function needs an implementation. If you are seeing this message, you are probably using the base OrionStore instead of a store having a DB-implementation.");
    },
    
    refreshDBRecord: function(storeRequest,clientId,callback){
       // the callback expects a record
-      console.log("Implement this function");       
+      console.log("This function needs an implementation. If you are seeing this message, you are probably using the base OrionStore instead of a store having a DB-implementation.");
    },
    
    // The remaining functions contain a standard implementation
