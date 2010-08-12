@@ -23,6 +23,15 @@ There are a few conditions that need to be in place to make this work:
 
 */
 
+/*
+ This data source has a built-in authentication dialog.
+ you can show it by calling showLoginPane()
+ 
+ When the authentication fails, the data source also shows a error message on a pane.
+ You can override this behaviour by providing your own showErrorMessage function.
+
+*/
+
 
 SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    /*
@@ -89,8 +98,9 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    },
    
    _pane: null,
+   _paneCallback: null,
    
-   showErrorMessage: function(message){
+   showErrorMessage: function(message,callback){
       var me = this;
       var sheet = SC.SheetPane.create({
          layout: { width:350, height: 150, centerX: 0 },
@@ -107,18 +117,98 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
             okButton: SC.ButtonView.design({
                layout: { bottom: 20, height: 25, width: 100, centerX: 0 },
                title: 'Ok',
+               isDefault: YES,
                action: 'closeErrorMessage',
                target: me
             })
          })
       });
       this._pane = sheet;
+      this._callback = callback;
       sheet.append();
    },
    
    closeErrorMessage: function(){
       this._pane.remove();
       this._pane = null; 
+      var callback = this._callback;
+      if(callback){
+         this._callback = null;
+         callback.call(this);         
+      }
+   },
+   
+   showLoginPane: function(){
+      var me = this;
+      var sheet = SC.SheetPane.create({
+         layout: { width:400, height: 200, centerX: 0 },
+         contentView: SC.View.extend({
+            layout: { top: 0, right: 0, bottom: 0, left: 0 },
+            childViews: "loginHeaderLabel usernameLabel passwordLabel usernameInput passwordInput cancelButton loginButton".w(),
+
+            loginHeaderLabel: SC.LabelView.design({
+               layout: { height: 25, width: 250, bottom: 150, centerX: 0 },
+               textAlign: SC.ALIGN_CENTER,
+               value: 'Please fill in your login information'
+            }),
+
+            usernameLabel: SC.LabelView.design({
+               layout: { height: 25, width: 150, bottom: 100, centerX: -120 },
+               textAlign: SC.ALIGN_CENTER,
+               value: 'User name:'
+            }),
+
+            passwordLabel: SC.LabelView.design({
+               layout: { height: 25, width: 150, bottom: 100, centerX: 35 },
+               textAlign: SC.ALIGN_CENTER,
+               value: 'Password:'
+            }),               
+            
+            usernameInput: SC.TextFieldView.design({
+              layout: { height: 25, width: 150, bottom: 80, centerX: -80 },
+              hint: 'Username...',
+              isPassword: NO,
+              isTextArea: NO
+            }),
+            
+            passwordInput: SC.TextFieldView.design({
+              layout: { height: 25, width: 150, bottom: 80, centerX: 80 },
+              hint: 'Password...',
+              isPassword: YES,
+              isTextArea: NO
+            }),
+            
+            cancelButton: SC.ButtonView.design({
+              layout: { height: 25, width: 100, bottom: 20, centerX: 80 },
+              title: 'Annuleren',
+              action: 'closeLoginPane',
+              target: me
+            }),
+            
+            loginButton: SC.ButtonView.design({
+              layout: { height: 25, width: 100, bottom: 20, centerX: -80 },
+              title: 'Login',
+              action: 'attemptLogin',
+              target: me,
+              isDefault: YES
+            })
+         })
+      });
+      
+      this._pane = sheet;
+      sheet.append();
+   },
+   
+   closeLoginPane: function(){
+      this._pane.remove();
+      this._pane = null;
+   },
+   
+   attemptLogin: function(){
+      var username = this._pane.contentView.usernameInput.value;
+      var passwd = this._pane.contentView.passwordInput.value;
+      this.closeLoginPane();
+      this.authRequest(username,passwd);
    },
    
    createOnOpenHandler: function(callback){ // to create an onOpen callback
@@ -188,12 +278,17 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    },
    
    authRequest: function(user,passwd,passwdIsMD5){
-      if(this.isConnected){
+      var me = this;
+      var sendAuthRequest = function(){
          var baseRequest = {auth:{ user: user, passwd: passwd, passwdIsMD5: passwdIsMD5}};
-         if(this.sessionKey) baseRequest.auth.sessionKey = this.sessionKey; // resume the session if possible
-         this.send(baseRequest);
+         if(me.sessionKey) baseRequest.auth.sessionKey = me.sessionKey; // resume the session if possible
+         me.send(baseRequest);
+      };
+      
+      if(!this.isConnected){
+         this.wsConnect(me.store,sendAuthRequest);
       }
-      else console.log('Cannot send an authentication request because there is no active connection');
+      else sendAuthRequest();
    },
    
    refreshRequest: function(bucket,key){
@@ -216,9 +311,9 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    
    onAuthError: function(data){
       // function called when authorisation has gone awry for some reason
-      var errorMsg = data.authError.errorMsg;
-      alert('Authentication error: ' + errorMsg);
+      var errorMsg = data.errorMsg;
       console.log('Authentication error: ' + errorMsg);
+      this.showErrorMessage(errorMsg,this.showLoginPane);
    },
    
    onLogoutSuccess: function(data){
