@@ -2,7 +2,7 @@
 var sys = require('sys');
 require('./OrionServer');
 require('./OrionStore');
-require('./OrionSessions');
+require('./OrionSession');
 require('./OrionPolicies');
 
 
