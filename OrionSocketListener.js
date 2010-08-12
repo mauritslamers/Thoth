@@ -161,7 +161,7 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 		//this.clients.push(client); // just storing the client?
 		//this.clientsIndex[client.sessionId] = client; // this stores the client by sessionId, which we don't do yet
 		//this.options.log('Client '+ client.sessionId +' connected');
-		sys.puts("new unauthenticated client connected");
+		sys.log("OrionSocketListener: new unauthenticated client connected");
 		this.emit('clientConnect', client); // create the onClientConnect event
 	},
 	
@@ -206,6 +206,7 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 	               this._authSuccessMsg(client); // send the user the session key
 	               // now send the client the request queue, if it exists
 	               this._sendRequestQueue(client);
+	               sys.log("OrionSocketListener: Client " + client.user + " authenticated, sessionKey: " + client.sessionKey);
 	               return YES; 
 	            }
 	            else {
