@@ -737,7 +737,7 @@ global.OrionServer = SC.Object.extend({
             if(policyResponse){ // either YES or adjusted record
                var rec = (policyResponse === YES)? storeRequest.recordData: policyResponse;
                storeRequest.recordData = rec;
-               this.store.createRecord(storeRequest,clientId,
+               me.store.createRecord(storeRequest,clientId,
                   function(rec){
                      rec = me.policyModule.filterRecord? me.policyModule.filterRecord(storeRequest,rec): rec;
                      me.sessionModule.storeBucketKey(client.user,client.sessionKey,rec.bucket, rec.key);
@@ -778,7 +778,7 @@ global.OrionServer = SC.Object.extend({
      if(storeRequest.bucket && storeRequest.key && clientId){
         var updateAction = function(policyResponse){
            if(policyResponse){
-              this.store.updateRecord(storeRequest,clientId,
+              me.store.updateRecord(storeRequest,clientId,
                  function(record){
                     record = me.policyModule.filterRecords? me.policyModule.filterRecord(storeRequest,record): record;
                     // the relation set is already on the record
@@ -827,7 +827,7 @@ global.OrionServer = SC.Object.extend({
          };
          var destroyAction = function(policyResponse){
             if(policyResponse){
-               this.store.deleteRecord(storeRequest, clientId, function(val){
+               me.store.deleteRecord(storeRequest, clientId, function(val){
                   me.sessionModule.deleteBucketKey(client.user,client.sessionKey,bucket,key);
                   callback({deleteRecordResult: { bucket: bucket, key: key, record: record, returnData: deleteRec.returnData}});
                   me.distributeChanges(record,"delete",client.user,client.sessionKey);
