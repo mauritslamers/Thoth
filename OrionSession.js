@@ -95,15 +95,23 @@ global.OrionSession = SC.Object.extend({
       else return NO; // no user data found for received user name
    },
    
-   createSession: function(user,sessionKeyOnly){
+   getUserData: function(user){
+     if(user && this._loggedInUsers[user]){
+        return this._loggedInUsers[user].userData;
+     } 
+   },
+   
+   createSession: function(userData,sessionKeyOnly){
       // a function to create a user session when a user has logged in successfully
       // the function returns the set-cookie header info, or in case sessionKeyOnly is set, only the sessionKey
-
+      
+      var user = userData.user;
       // first create a session key
       var newSessionKey = this.generateSessionKey();
       // then set the user information and add to any existing stuff
       if(!this._loggedInUsers[user]){ // no existing info, create 
          this._loggedInUsers[user] = { 
+            userData: userData,
             sessionKeys: [newSessionKey],
             lastSeen: [new Date().getTime()],
             sessionData: [OrionUserCache.create()]
