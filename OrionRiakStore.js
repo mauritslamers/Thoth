@@ -12,7 +12,7 @@ global.OrionRiakStore = OrionStore.extend({
    db: new riak.getClient(),
    
    createObjectFromFetchData: function(rec,metadata){
-      var newobj = { bucket: rec.bucket, key: rec.key , vclock: rec.vclock};
+      var newobj = { bucket: rec.bucket, id: rec.key, key: rec.key , vclock: rec.vclock};
       var curvals = rec.values;
       if(curvals){
          // assume for the moment curvals is an array with length 1
@@ -86,6 +86,7 @@ global.OrionRiakStore = OrionStore.extend({
       refresh(function(rec,meta){
          rec.bucket = resource;
          rec.key = key;
+         rec.id = key;
          rec.vclock = meta.headers["x-riak-vclock"];
          rec.links = [meta.headers["link"]];
          rec.etag = meta.headers["etag"]; // this is small caps for some strange reason
@@ -102,6 +103,7 @@ global.OrionRiakStore = OrionStore.extend({
       var resource = storeRequest.bucket, key = storeRequest.key, data = storeRequest.recordData;
       if(resource && data && clientId){ // don't allow storage without a clientId
          var opts = { clientId: clientId };
+         if(data.id) delete data.id;
          var create = this.db.save(resource,key,data,opts);
          create(function(rec,meta){
             // recs is empty, metadata already contains the key without having it to pry out
@@ -110,6 +112,7 @@ global.OrionRiakStore = OrionStore.extend({
             var newRec = data;
             newRec.bucket = resource;
             newRec.key = meta.key;
+            newRec.id = meta.key;
             newRec.contentType = meta.type;
             if(callback) callback(newRec);
          });
@@ -121,6 +124,7 @@ global.OrionRiakStore = OrionStore.extend({
       // the callback expects the updated record
       if(resource && key && data && clientId){
          var opts = {clientId: clientId};
+         if(data.id) delete data.id;
          var update = this.db.save(resource,key,data,opts);
          update(function(rec,meta){
             // update doesn't return the updated record, so we need to have the original data
@@ -128,6 +132,7 @@ global.OrionRiakStore = OrionStore.extend({
             var returndata = data || {};
             returndata.bucket = resource;
             returndata.key = key;
+            returndata.id = key;
             returndata.date = meta.date;
             if(callback) callback(returndata);
          });
