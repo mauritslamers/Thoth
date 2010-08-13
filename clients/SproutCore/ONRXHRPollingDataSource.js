@@ -1,6 +1,6 @@
 sc_require('controllers/ONRDataSource');
 
-Meetme.ONRXHRPollingDataSource = Meetme.ONRDataSource.extend({
+SC.ONRXHRPollingDataSource = SC.ONRDataSource.extend({
    
    ONRHost: 'localhost',
    
