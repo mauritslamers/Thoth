@@ -32,8 +32,10 @@ There are a few conditions that need to be in place to make this work:
 
 */
 
+// basic version without traffic specific stuff
 
-SC.OrionNodeRiakDataSource = SC.DataSource.extend({
+
+SC.ONRDataSource = SC.DataSource.extend({
    /*
      =====
      User configurable properties
@@ -41,11 +43,11 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    */
 
    
-   OrionNodeRiakHost: 'localhost',
+   OrionNodeRiakHost: null,
    
-   OrionNodeRiakPort: '8080',
+   OrionNodeRiakPort: null,
    
-   OrionNodeRiakURL: '/socket.io/websocket',
+   OrionNodeRiakURL: null,
    
    authSuccessCallback: null, 
    
@@ -54,7 +56,6 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
      WebSocket stuff   
      ========
    */
-   _webSocket: null, // the websocket object will be stored here
    
    _user: '',
    
@@ -62,15 +63,8 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    
    store: null, // a reference to the store where the (forced) updates need to be sent
          
-   wsConnect: function(store,callback){ // we need the store to direct the push traffic to
-      var wsHost = [this.OrionNodeRiakHost,this.OrionNodeRiakPort].join(":");
-      var wsURL = ['ws://',wsHost,this.OrionNodeRiakURL].join("");
-      this._webSocket = new WebSocket(wsURL);
-      // register callbacks
-      this._webSocket.onopen = this.createOnOpenHandler(callback);
-      this._webSocket.onmessage = this.createOnMessageHandler();
-      this._webSocket.onerror = this.createOnErrorHandler();
-      this._webSocket.onclose = this.createOnCloseHandler();
+   connect: function(store,callback){ // we need the store to direct the push traffic to
+      throw("ONRDatasource connect: You are using the basic data source without traffic specification...");
    },
    
    /*
@@ -87,14 +81,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
      
    */
    send: function(val){
-      //console.log('Send function called on OrionNodeRiak Datasource');
-      if(this._webSocket && val){
-         var msg = JSON.stringify(val);
-         console.log('Trying to send message: ' + msg);
-         //return this._webSocket.send(msg);
-         this._webSocket.send(msg); // cannot return anything as the calling function is most likely GC'ed already
-      }
-      else return false;
+      throw("ONRDatasource send: You are using the basic data source without traffic specification...");
    },
    
    _pane: null,
@@ -286,7 +273,7 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
       };
       
       if(!this.isConnected){
-         this.wsConnect(me.store,sendAuthRequest);
+         this.connect(me.store,sendAuthRequest);
       }
       else sendAuthRequest();
    },
@@ -1160,3 +1147,4 @@ SC.OrionNodeRiakDataSource = SC.DataSource.extend({
    }
    
 });
+
