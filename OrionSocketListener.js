@@ -205,9 +205,9 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
    	                  // check session
    	                  var sessionExists = sessionModule.checkSession(user,receivedSessionKey,sessionKeyOnly);
    	                  // if sessionExists for the sessionkey, set the session key of the client to the receivedSessionKey
-   	                  client.sessionKey = sessionExists? receivedSessionKey: sessionModule.ONR(authresult,sessionKeyOnly);
+   	                  client.sessionKey = sessionExists? receivedSessionKey: sessionModule.createSession(authresult,sessionKeyOnly);
    	               }
-   	               else client.sessionKey = sessionModule.ONR(authresult,sessionKeyOnly);
+   	               else client.sessionKey = sessionModule.createSession(authresult,sessionKeyOnly);
    	               // session key set
    	               client.isAuthenticated = YES;
    	               client.user = user; // set the user
