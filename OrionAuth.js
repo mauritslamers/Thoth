@@ -15,18 +15,24 @@ global.OrionAuth = SC.Object.extend({
    checkAuth: function(user,passwd,passwdIsMD5,callback){
       // one function for both standard auth as MD5
       // it uses a callback to do stuff node style, as a request might take some time...
-      // the callback is called with an object with an authenticated and isRoot property
+      // the callback should be called with an object containing at least the user name and the role on a successful authentication
       var ret = {
-         authenticated: NO,
+         userName: '',
          role: null
       };
       if(user === this.rootUser){
          if(this.rootPassword === passwd) {
             ret.role = "root";
-            ret.authenticated = YES;
+            ret.user = user;
          }
       }
-      callback(ret);
+      var authenticated = this.doSomeCheck();
+      if(authenticated){
+         callback(ret);
+      }
+      else {
+         callback(NO);
+      }
    }
    
 });
