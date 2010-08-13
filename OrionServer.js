@@ -34,6 +34,8 @@ global.OrionServer = SC.Object.extend({
    
    allowWebSocket: true,
    
+   allowXHRPolling: true,
+   
    forceAuth: true, // the socket clients haven't been written in such a way atm that changing this to false does anything...
    
    forceMD5Auth: false,
@@ -63,6 +65,7 @@ global.OrionServer = SC.Object.extend({
                // make sure that the user is authenticated, 
                // but only after we found out the current request doesn't turn out to be an auth request
                if(method === 'POST' && resource == 'auth'){ // force auth with posting
+                  sys.log('OrionServer: receiving an AUTH request on the REST side');
                   var authdata = "";
                   request.addListener("data", function(chunk){ // gather data
                      authdata += chunk;
@@ -75,7 +78,7 @@ global.OrionServer = SC.Object.extend({
                   //sys.puts(sys.inspect(request));
                   var receivedCookieHeader = request.headers['cookie'];
                   var receivedUserName = request.headers['username'];
-                  sys.puts('cookieHeader received: ' + receivedCookieHeader);
+                  //sys.puts('cookieHeader received: ' + receivedCookieHeader);
                   if(receivedCookieHeader && receivedUserName){
                      //check the session
                      var hasSession = serverObj.sessionModule.checkSession(receivedUserName,receivedCookieHeader);
@@ -174,18 +177,23 @@ global.OrionServer = SC.Object.extend({
       */
      
       var givenCookieHeader = request.headers.Cookie;
-      //response.write('received data: ' + data);
       // data should be json stuff
       var dataObj = JSON.parse(data);
-      var authResult = this.authModule.checkAuth(dataObj.user, dataObj.passwd,false);
-      if(authResult){
-         // successfull auth
-         var newCookieHeader = this.sessionModule.createSession(dataObj.user);
-         response.writeHead(200, {'Content-Type': 'text/html', 'Set-Cookie':newCookieHeader });
+      var me = this;
+      var callback = function(authResult){
+         if(authResult){
+            // successfull auth
+            var newCookieHeader = me.sessionModule.createSession(dataObj.user);
+            response.writeHead(200, {'Content-Type': 'text/html', 'Set-Cookie':newCookieHeader });
+         }
+         else {
+            response.writeHead(200, {'Content-Type': 'text/html'});
+         }
+         response.write("<br/>auth result: " + authResult);
+         response.write('<br/>received cookie: ' + givenCookieHeader);
+         response.end();         
       }
-      response.write("<br/>auth result: " + authResult);
-      response.write('<br/>received cookie: ' + givenCookieHeader);
-      response.end();      
+      this.authModule.checkAuth(dataObj.user, dataObj.passwd,false,callback);
       
    },
    
