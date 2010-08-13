@@ -183,14 +183,16 @@ global.OrionServer = SC.Object.extend({
       var callback = function(authResult){
          if(authResult){
             // successfull auth
-            var newCookieHeader = me.sessionModule.createSession(dataObj.user);
+            // need to get the user data into the session info somehow
+            var newCookieHeader = me.sessionModule.createSession(authResult);
             response.writeHead(200, {'Content-Type': 'text/html', 'Set-Cookie':newCookieHeader });
+            //response.write(JSON.stringify({sessionCookie: newCookieHeader}));
          }
          else {
             response.writeHead(200, {'Content-Type': 'text/html'});
+            response.write("<br/>auth result: " + authResult);
+            //response.write('<br/>received cookie: ' + givenCookieHeader);
          }
-         response.write("<br/>auth result: " + authResult);
-         response.write('<br/>received cookie: ' + givenCookieHeader);
          response.end();         
       }
       this.authModule.checkAuth(dataObj.user, dataObj.passwd,false,callback);

@@ -12,11 +12,11 @@ global.OrionSocketClient = SC.Object.extend({
    
    options: {},
    
-   isConnected: false, // flag to know whether we have a connection
+   isConnected: null, // flag to know whether we have a connection
    
-   isAuthenticated: false, // flag to know whether this connection is authenticated and consequently allowed to receive data
+   isAuthenticated: null, // flag to know whether this connection is authenticated and consequently allowed to receive data
    
-   sessionKey: "",  // property to be able to store the session info, to enable 
+   sessionKey: null,  // property to be able to store the session info, to enable 
                      //the same user to do both websocket as other types of requests
                      
    user: null, // the user name of the connected and authenticated user
@@ -60,25 +60,25 @@ global.OrionSocketClient = SC.Object.extend({
 	},
 
 	send: function(message){
-	   //sys.puts("Send called on OrionSocketClient with message " + sys.inspect(message));
+	   sys.log("Send called on OrionSocketClient with message " + sys.inspect(message));
+	   sys.log('check on options: ' + (!this.isConnected || !(this.connection.readyState === 'open' || this.connection.readyState === 'writeOnly')) )
+	   sys.log('this.isConnected: ' + this.isConnected);
+	   sys.log('this.connection: ' + sys.inspect(this.connection));
+	   sys.log('this.connection.readyState: ' + this.connection.readyState);
 		if (!this.isConnected || !(this.connection.readyState === 'open' || this.connection.readyState === 'writeOnly')) {
+		   
 			//return this._queue(message);
+			//sys.log(" status: isConnected? " + this.isConnected + " and connection " + sys.inspect(this.connection));
 			sys.log("whoops? trying to send something without an open connection, and it hasn't been caught by OrionServer...? This is not good!");
+			//sys.log("Message that was to be sent: " + JSON.stringify(message));
+			//sys.log('Contents of this: ' + sys.inspect(this));
 		}
 		else {
+		   sys.log("OrionSocketClient: sending message to this._write");
 		   this._write(JSON.stringify([message]));
    		//return this;
 		}
-		//this._write(JSON.stringify({messages: [message]}));
-		
-	},
-
-	broadcast: function(message){
-		if (!('sessionId' in this)) {
-			return this;
-		}
-		this.listener.broadcast(message, this.sessionId);
-		return this;
+		sys.log("After check??");
 	},
 
 	_onMessage: function(data){
@@ -86,7 +86,7 @@ global.OrionSocketClient = SC.Object.extend({
 	   try {
 	      var messages = JSON.parse(data);
 	   } catch(e){
-	      return this.listener.options.log('Bad message received from client ' + this.sessionId + " with data: " + data);
+	      return this.listener.options.log('Bad message received from client ' + this.sessionId + " with data: " + JSON.stringify(data));
 	   }
       // messages can be either an object or an array, so in case of an array, 
       // call the callback on the listener with one object/message at a time.
@@ -134,12 +134,14 @@ global.OrionSocketClient = SC.Object.extend({
 		if (payload.length) {
 			this._write(JSON.stringify({messages: payload}));
 		}
+		sys.log("OrionSocketClient: This.connnections " + this.connections);
 		if (this.connections === 1) {
 			this.listener._onClientConnect(this);
 		}
 	},
 
 	_onClose: function(){
+	   sys.log("OrionSocketClient: _onClose called");
 		var self = this;
 		if (this._heartbeatInterval) {
 			clearInterval(this._heartbeatInterval);
@@ -151,6 +153,7 @@ global.OrionSocketClient = SC.Object.extend({
 	},
 
 	_onDisconnect: function(){	
+	   sys.log('OrionSocketClient: _onDisconnect called');
 		if (!this.finalized){
 			this._writeQueue = [];
 			this.connected = false;
@@ -159,22 +162,6 @@ global.OrionSocketClient = SC.Object.extend({
 				this.listener._onClientDisconnect(this);
 			}
 		}
-	},
-
-	_queue: function(message){
-		if (!('_writeQueue' in this)) {
-			this._writeQueue = [];
-		}
-		this._writeQueue.push(message);
-		return this;
-	},
-
-	_generateSessionId: function(){
-		if (this.sessionId) {
-			return this.listener.options.log('This client already has a session id');
-		}
-		this.sessionId = Math.random().toString().substr(2);
-		return this;
 	},
 
 	_verifyOrigin: function(origin){

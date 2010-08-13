@@ -7,7 +7,7 @@ global.OrionSocketWSClient = OrionSocketClient.extend({
 
    httpUpgrade: true,
 
-   connectionHearbeat: false,
+   connectionHeartbeat: false,
 
 	_onConnect: function(req, socket){
 		var self = this, headers = [];

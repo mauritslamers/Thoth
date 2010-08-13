@@ -2,6 +2,7 @@ var url = require('url');
 var sys = require('sys');
 require('./OrionSocketClient');
 require('./OrionSocketWSClient');
+require('./OrionSocketXHRPollingClient');
 var transports = {};
 
 /* 
@@ -77,7 +78,7 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 		origins: '*:*',
 		resource: 'socket.io',
 		//transports: ['websocket', 'flashsocket', 'htmlfile', 'xhr-multipart', 'xhr-polling'],
-		transports: ['websocket'],
+		transports: ['websocket','xhr-polling'],
 		transportOptions: {},
 		log: function(message){
 			require('sys').log(message);
@@ -116,6 +117,7 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 			} 
 		}, this); */
 		transports['websocket'] = OrionSocketWSClient; // override the websocket 
+		transports['xhr-polling'] = OrionSocketXHRPollingClient; // provide the xhr polling client
 		
 		this.options.log('socket.io ready - accepting connections');
    },
@@ -155,13 +157,19 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 		if (!(client instanceof OrionSocketClient) || !client.handshaked){
 			return this.options.log('Invalid client');
 		}
-		
+		if(client.isAuthenticated){
+         this.authenticatedClients.push(client);
+         //this._sendRequestQueue(client);
+		}
+		else {
+		   this.unAuthenticatedClients.push(client); // store the client in the unAuthenticated clients   
+		   sys.log("OrionSocketListener: new unauthenticated client connected");
+		}
 		//client.i = this.clients.length; // this stinks.. because if a client disconnects the array doesn't scale
-		this.unAuthenticatedClients.push(client); // store the client in the unAuthenticated clients
+		
 		//this.clients.push(client); // just storing the client?
 		//this.clientsIndex[client.sessionId] = client; // this stores the client by sessionId, which we don't do yet
 		//this.options.log('Client '+ client.sessionId +' connected');
-		sys.log("OrionSocketListener: new unauthenticated client connected");
 		this.emit('clientConnect', client); // create the onClientConnect event
 	},
 	
@@ -194,9 +202,9 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
    	                  // check session
    	                  var sessionExists = sessionModule.checkSession(user,receivedSessionKey,sessionKeyOnly);
    	                  // if sessionExists for the sessionkey, set the session key of the client to the receivedSessionKey
-   	                  client.sessionKey = sessionExists? receivedSessionKey: sessionModule.createSession(user,sessionKeyOnly);
+   	                  client.sessionKey = sessionExists? receivedSessionKey: sessionModule.ONR(authresult,sessionKeyOnly);
    	               }
-   	               else client.sessionKey = sessionModule.createSession(user,sessionKeyOnly);
+   	               else client.sessionKey = sessionModule.ONR(authresult,sessionKeyOnly);
    	               // session key set
    	               client.isAuthenticated = YES;
    	               client.user = user; // set the user
@@ -301,6 +309,7 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 	},
 	
 	_onClientDisconnect: function(client){
+	   sys.log('OrionSocketListener: _onClientDisconnect called');
 	   // if a client disconnects, remove the object from either authenticatedClients or unAuthenticatedClients
 	   this.authenticatedClients.removeObject(client);
 	   this.unAuthenticatedClients.removeObject(client);
@@ -311,10 +320,6 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 	// new connections (no session id)
 	_onConnection: function(transport, req, res, httpUpgrade, head){
 	   //sys.puts("OrionSocketListener: _onConnection");
-	   //sys.puts("index of transport: " + this.options.transports.indexOf(transport));
-	   //sys.puts("httpUpgrade: " + httpUpgrade);
-	   //sys.puts("transports[transport].httpUgrade: " + transports[transport].httpUpgrade);
-	   //sys.puts("transports[transport].prototype.httpUgrade: " + transports[transport].prototype.httpUpgrade);
 		if (this.options.transports.indexOf(transport) === -1 || (httpUpgrade && !transports[transport].prototype.httpUpgrade)){
 			httpUpgrade ? res.destroy() : req.connection.destroy();
 			sys.puts('Illegal transport "'+ transport +'"');
@@ -323,6 +328,7 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 		this.options.log('Initializing client with transport "'+ transport +'"');
 		var client = transports[transport].create({ OrionServer: this.OrionServer });
 		client.start(this, req, res, this.options.transportOptions[transport], head);
+		//sys.log("unAuthenticated clients: " + sys.inspect(this.unAuthenticatedClients));
 	},
 	
 	getClientBySessionKey: function(sessionKey){
