@@ -75,6 +75,7 @@ global.OrionSession = SC.Object.extend({
          curUserData = this._loggedInUsers[user]; // get the user data
       }
       if(curUserData){ // if it exists, check it
+         //sys.log('OrionSession: curUserData exists: ' + sys.inspect(curUserData));
          var sesKeyIndex = curUserData.sessionKeys.indexOf(receivedSessionKey);
          if(sesKeyIndex> -1){
             var lastSeen = curUserData.lastSeen[sesKeyIndex];
@@ -104,12 +105,13 @@ global.OrionSession = SC.Object.extend({
    createSession: function(userData,sessionKeyOnly){
       // a function to create a user session when a user has logged in successfully
       // the function returns the set-cookie header info, or in case sessionKeyOnly is set, only the sessionKey
-      
+      //sys.log('OrionSession: userData received: ' + JSON.stringify(userData));
       var user = userData.user;
       // first create a session key
       var newSessionKey = this.generateSessionKey();
       // then set the user information and add to any existing stuff
       if(!this._loggedInUsers[user]){ // no existing info, create 
+         //sys.log('OrionSession: no existing userdata for user: ' + user);
          this._loggedInUsers[user] = { 
             userData: userData,
             sessionKeys: [newSessionKey],

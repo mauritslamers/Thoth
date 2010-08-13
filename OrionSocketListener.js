@@ -85,6 +85,13 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 		}
 	},
   
+  sendData: function(userData,dataToSend){
+     // send function to be used for all clients...
+     // first get the client fitting the user data and then send the dataToSend
+      var client = this.getClientBySessionKey(userData.sessionKey);
+      client.send(dataToSend);
+  },
+  
   start: function(server, options){
 		var self = this;
 		process.EventEmitter.call(this);
@@ -140,10 +147,6 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 			return true;
 		}
 		return false;
-	},
-	
-	_lookupClient: function(sid){
-		return this.clientsIndex[sid];
 	},
 	
 	/* 
@@ -309,7 +312,7 @@ global.OrionSocketListener = SC.Object.extend(process.EventEmitter.prototype, {
 	},
 	
 	_onClientDisconnect: function(client){
-	   sys.log('OrionSocketListener: _onClientDisconnect called');
+	   sys.log('OrionSocketListener: _onClientDisconnect called for client with name ' + this.user + " and sessionKey " + this.sessionKey);
 	   // if a client disconnects, remove the object from either authenticatedClients or unAuthenticatedClients
 	   this.authenticatedClients.removeObject(client);
 	   this.unAuthenticatedClients.removeObject(client);

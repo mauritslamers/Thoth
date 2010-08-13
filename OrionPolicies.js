@@ -108,7 +108,7 @@ global.OrionPolicies = SC.Object.extend({
       var policies = this.policyCache;
       // load policies if not yet loaded
       var noPolCheck = this.noPolicyCheckForRoles;
-      if(noPolCheck.indexOf(storeRequest.client.userData.role) === -1){ 
+      if(noPolCheck.indexOf(storeRequest.userData.role) === -1){ 
          // we need to catch requests for which there is no policy
          if(!policies[resource]){
             sys.log("OrionPolicies: You have been trying to perform a " + action + " action on " + resource + " but no policies have been defined for this resource");
@@ -130,13 +130,13 @@ global.OrionPolicies = SC.Object.extend({
                for(var i=0,len=record.length;i<len;i++){
                   curRec = record[i];
                   polCheck = policies[resource][action];
-                  polCheck(storeRequest,storeRequest.client.userData,curRec,this.createPolicyCheckCallBack(curRec,cacheKey,callback));
+                  polCheck(storeRequest,storeRequest.userData,curRec,this.createPolicyCheckCallBack(curRec,cacheKey,callback));
                }               
             }
          }
          else {
             sys.log('OrionPolicy: request not an array request...')
-            policies[resource][action](storeRequest,storeRequest.client.userData,record,callback);   
+            policies[resource][action](storeRequest,storeRequest.userData,record,callback);   
          }
       } 
       else callback(YES); // if the users role is in the noPolicyCheck, just allow. Otherwise the policy settings take over (which is default not to send anything).
@@ -145,7 +145,7 @@ global.OrionPolicies = SC.Object.extend({
    filterRecord: function(storeRequest,record){
       var resource = storeRequest.bucket, action = storeRequest.action;
       var policies = this.get('policyCache');
-      return policies[resource][action](storeRequest, storeRequest.client.userData,record);
+      return policies[resource][action](storeRequest, storeRequest.userData,record);
    }
    
 });

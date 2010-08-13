@@ -41,14 +41,18 @@ global.OrionSocketXHRPollingClient = OrionSocketClient.extend({
 		
 	_onConnect: function(req, res){
 	   sys.log('XHRPolling _onConnect: req method = ' + req.method);
-		var self = this, body = '';
+		var me = this, body = '';
 
       // we need to make sure there is a valid sessionKey
       //sys.log('req headers: ' + sys.inspect(req.headers));
       var user = req.headers.user;
       var sessionKey = req.headers.sessionkey;
       var sessionModule = this.OrionServer.sessionModule; // our way to the session info
-      var hasSession = (user && sessionKey)? sessionModule.checkSession(user,sessionKey,true): false;
+      var hasSession = false;
+      if(user && sessionKey){
+         sys.log('XHRPolling: trying to get the session check');
+         hasSession = sessionModule.checkSession(user,sessionKey,true);
+      } 
       sys.log('XHRPolling: request attempt with user: ' + user + ' and sessionKey: ' + sessionKey + '. Session found: ' + hasSession);
       if((!user && !sessionKey) && !hasSession){ // force an end to the connection when the proper info is not here...
          res.writeHead(200);
@@ -57,8 +61,7 @@ global.OrionSocketXHRPollingClient = OrionSocketClient.extend({
 			res.end();
 			return;
       }      
-      
-      // session stuff in place:
+
       this.user = user;
       this.sessionKey = sessionKey;
       this.isAuthenticated = YES;
@@ -72,6 +75,8 @@ global.OrionSocketXHRPollingClient = OrionSocketClient.extend({
 			   this.request = req;
    		   this.response = res;
    	      this.connection = this.request.connection;
+   	      // session stuff in place:
+
       	   sys.log('XHRPolling: payload about to be run');
       	   this._payload(YES); // already authenticated
       	   
@@ -82,7 +87,7 @@ global.OrionSocketXHRPollingClient = OrionSocketClient.extend({
 				
 				this._closeTimeout = setTimeout(function(){
 				   sys.log('closing the connection by timeOut...');
-					self._write('');
+					me._write('');
 				}, this.duration);
 				break;				
 			case 'POST':
@@ -93,7 +98,9 @@ global.OrionSocketXHRPollingClient = OrionSocketClient.extend({
 				   sys.log("ONRXHRPolling End of POST Request...");
 					try {
 						var msg = qs.parse(body);
-						self._onMessage(msg.data);
+						sys.log("XHRPolling POST received with data: " + JSON.stringify(msg));
+						me._onMessage(msg.data);
+                  me.isAuthenticated = NO; // quickly disengage the current connection
 					} catch(e){}
 					res.writeHead(200);
 					res.write('ok');
@@ -111,6 +118,8 @@ global.OrionSocketXHRPollingClient = OrionSocketClient.extend({
 		}
 		var headers = {'Content-Type': 'text/plain', 'Content-Length': message.length};
 		// https://developer.mozilla.org/En/HTTP_Access_Control
+	//	sys.log('XHRPolling: this.request.headers ' + sys.inspect(this.request.headers));
+	//	sys.lof('XHRPolling: verify origin: ' + this._verifyOrigin(this.request.headers.origin));
 		if (this.request.headers.origin && this._verifyOrigin(this.request.headers.origin)) {
 			headers['Access-Control-Allow-Origin'] = this.request.headersorigin;
 			if (this.request.headers.cookie) {
@@ -118,7 +127,7 @@ global.OrionSocketXHRPollingClient = OrionSocketClient.extend({
 			}
 		}
 		else {
-		   sys.log("ONRXHRPolling: header check failed...");
+		   //sys.log("ONRXHRPolling: header check failed...");
 		}
 		this.response.writeHead(200, headers);
 		this.response.write(message);

@@ -1,9 +1,6 @@
+sc_require('controllers/ONRDataSource');
 
-// needs ONRDatasource, make sure it is required
-//sc_require('controllers/ONRDataSource');
-
-
-SC.ONRXHRPollingDataSource = Meetme.ONRDataSource.extend({
+Meetme.ONRXHRPollingDataSource = Meetme.ONRDataSource.extend({
    
    ONRHost: 'localhost',
    
@@ -15,11 +12,14 @@ SC.ONRXHRPollingDataSource = Meetme.ONRDataSource.extend({
    
    send: function(data){
       // check whether
-		this._sendXhr = this._request('send', 'POST');
-		this._sendXhr.setRequestHeader('User',this._user);
-		this._sendXhr.setRequestHeader('sessionKey',this._sessionKey);
-      data = JSON.stringify(data);
-		this._sendXhr.send('data=' + encodeURIComponent(data));
+      console.log('ONRXHRPollingDataSource: trying to send: ' + JSON.stringify(data));
+		//this._sendXhr = this._request('send', 'POST');
+		//this._sendXhr.setRequestHeader('User',this._user);
+		//this._sendXhr.setRequestHeader('sessionKey',this._sessionKey);
+      //data = JSON.stringify(data);
+		//this._sendXhr.send('data=' + encodeURIComponent(data));
+		var dataToSend = 'data='+ encodeURIComponent(JSON.stringify(data));
+		SC.Request.postUrl(this.ONRURL,dataToSend).async().header('user',this._user).header('sessionkey',this._sessionKey).send();
 	},
 	
 	authRequest: function(user,passwd,passwdIsMD5){
@@ -62,8 +62,13 @@ SC.ONRXHRPollingDataSource = Meetme.ONRDataSource.extend({
              var sessionKey=cookie.split("=")[1];
              // now set the session info
              this._sessionKey = sessionKey;
+             this.isConnected = YES;
+             this.isAuthenticated = YES;
              // now do the setup of the XHRPolling
              dataSource.connectXHRPollingSC();
+             // now do the authSuccessCallback
+             //dataSource.authSuccessCallback();
+             dataSource.send({ fetch: { bucket:'bird', returnData: { requestKey: 'baaaaaaaaal'}}});
           }
 
         }
@@ -146,7 +151,7 @@ SC.ONRXHRPollingDataSource = Meetme.ONRDataSource.extend({
 			this._xhr.onload = function(){
 			   var dataHandler = me.createOnMessageHandler();
 				if (this.responseText.length) dataHandler(this.responseText);
-				me.setupGET(); // reinit the connection
+				me.connectXHRPolling(); // reinit the connection
 			};
 		} else {
 		   console.log('XHR Polling: didn\'t find onload');
@@ -158,7 +163,7 @@ SC.ONRXHRPollingDataSource = Meetme.ONRDataSource.extend({
 					if (status == 200){
 					   var dataHandler = me.createOnMessageHandler();
 						if (me._xhr.responseText.length) dataHandler(me._xhr.responseText);
-						me.setupGET(); // reinit the connection
+						me.connectXHRPolling(); // reinit the connection
 					}
 				}
 			};	
@@ -168,13 +173,23 @@ SC.ONRXHRPollingDataSource = Meetme.ONRDataSource.extend({
 
    // can I do the same with an SC request?
    connectXHRPollingSC: function(){
-      var dataHandler = this.createOnMessageHandler();
-      SC.Request.getUrl('socket.io/xhr-polling')
+
+      SC.Request.getUrl('socket.io/xhr-polling').async()
          .header('User',this._user)
          .header('sessionKey',this._sessionKey)
          .json()
-         .notify(this,dataHandler)
+         .notify(this,this.handleXHRPolling,this)
          .send();
+   },
+   
+   handleXHRPolling: function(response,dataSource){
+      if(SC.ok(response)){
+         var dataHandler = dataSource.createOnMessageHandler();
+         var msg = response.get('body');
+         dataHandler(msg);
+         dataSource.connectXHRPollingSC();
+      }
+      console.log('current status: ' + response.status);
    },
 
    onXHRResult: function(response,dataSource){

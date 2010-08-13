@@ -26,7 +26,7 @@ global.OrionFileAuth = OrionAuth.extend({
       var userdata = this._authData[user];
       if(userdata){
          var ret = {
-            user: userdata.username,
+            user: user,
             role: userdata.role
          }
          if(userdata.passwd == passwd){

@@ -194,7 +194,7 @@ global.OrionServer = SC.Object.extend({
             //response.write('<br/>received cookie: ' + givenCookieHeader);
          }
          response.end();         
-      }
+      };
       this.authModule.checkAuth(dataObj.user, dataObj.passwd,false,callback);
       
    },
@@ -287,12 +287,17 @@ global.OrionServer = SC.Object.extend({
       	},
 
       	onClientMessage: function(message, client){
-      	   //sys.puts("onClientMessage in OrionServer called");
-      	   if(message.fetch) me.onFetch.call(me,message,client,function(data){ client.send(data);});
-      	   if(message.refreshRecord) me.onRefresh.call(me,message,client,function(data){ client.send(data);});
-      	   if(message.createRecord) me.onCreate.call(me,message,client,function(data){ client.send(data);});
-      	   if(message.updateRecord) me.onUpdate.call(me,message,client,function(data){ client.send(data);});
-      	   if(message.deleteRecord) me.onDelete.call(me,message,client,function(data){ client.send(data);});
+      	   sys.puts("onClientMessage in OrionServer called with message: " + JSON.stringify(message));
+      	   var userData = client.userData;
+      	   userData.sessionKey = client.sessionKey;
+      	   var returnFunction = function(data){
+      	      me.socketIO.sendData(userData,data);
+      	   };
+      	   if(message.fetch) me.onFetch.call(me,message,userData,returnFunction);
+      	   if(message.refreshRecord) me.onRefresh.call(me,message,userData,returnFunction);
+      	   if(message.createRecord) me.onCreate.call(me,message,userData,returnFunction);
+      	   if(message.updateRecord) me.onUpdate.call(me,message,userData,returnFunction);
+      	   if(message.deleteRecord) me.onDelete.call(me,message,userData,returnFunction);
       	}
       	
       });
@@ -443,7 +448,7 @@ global.OrionServer = SC.Object.extend({
      ] 
    } */
 
-   onFetch: function(message,client,callback){
+   onFetch: function(message,userData,callback){
       // the onFetch function is called to do the back end call and return the data
       // as there is no change in the data, the only thing it needs to do versus
       // the server cache is to update the server cache with the records the current
@@ -454,11 +459,11 @@ global.OrionServer = SC.Object.extend({
                
       var fetchinfo = message.fetch; 
       var me = this;
-      var clientId = [client.user,client.sessionKey].join("_");
+      var clientId = [userData.user,userData.sessionKey].join("_");
       var storeRequest = { 
          bucket: fetchinfo.bucket, 
          action: 'refresh',
-         client: client,
+         userData: userData,
          conditions: fetchinfo.conditions, 
          parameters: fetchinfo.parameters,
          relations: fetchinfo.relations 
@@ -476,8 +481,8 @@ global.OrionServer = SC.Object.extend({
          // properly adjusted records...
          // store the records and the queryinfo in the clients session (if the conditions are not there, the session function 
          // will automatically convert it into a bucket only query)
-         me.sessionModule.storeRecords(client.user,client.sessionKey,records);
-         me.sessionModule.storeQuery(client.user,client.sessionKey,fetchinfo.bucket,fetchinfo.conditions,fetchinfo.parameters);
+         me.sessionModule.storeRecords(userData.user,userData.sessionKey,records);
+         me.sessionModule.storeQuery(userData.user,userData.sessionKey,fetchinfo.bucket,fetchinfo.conditions,fetchinfo.parameters);
          // send off the data
          sys.log('Sending dataset for bucket ' + fetchinfo.bucket);
          callback({ 
@@ -536,7 +541,7 @@ global.OrionServer = SC.Object.extend({
       }
    },
    
-   onRefresh: function(message,client,callback){
+   onRefresh: function(message,userData,callback){
       // the onRefresh function is called to do the back end call and return the
       // data. As there is probably no change in data, we don't have to let
       // other clients know. For consistency, let's store the record in the session
@@ -547,17 +552,17 @@ global.OrionServer = SC.Object.extend({
       var storeRequest = { 
          bucket: refreshRec.bucket, 
          action: 'refresh',
-         client: client,
+         userData: userData,
          key: refreshRec.key,
          relations: refreshRec.relations
       };
       
       var me = this;
-      var clientId = [client.user,client.sessionKey].join("_");
+      var clientId = [userData.user,userData.sessionKey].join("_");
       if(refreshRec.bucket && refreshRec.key){
          
          var sendRecordData = function(rec){
-            me.sessionModule.storeBucketKey(client.user,client.sessionKey, refreshRec.bucket, rec.key);
+            me.sessionModule.storeBucketKey(userData.user,userData.sessionKey, refreshRec.bucket, rec.key);
             var ret = { refreshRecordResult: { bucket: refreshRec.bucket, key: rec.key, record: rec, returnData: refreshRec.returnData } };
             callback(ret);
          };
@@ -729,17 +734,17 @@ global.OrionServer = SC.Object.extend({
    // client as is the concept of socket-io...
    // so there should be only one listener...
    
-   onCreate: function(message,client,callback){
+   onCreate: function(message,userData,callback){
       var createRec = message.createRecord;
       var storeRequest = { 
          bucket: createRec.bucket, 
          key: createRec.key,
          action: 'create',
-         client: client,
+         userData: userData,
          recordData: createRec.record,
          relations: createRec.relations
       };
-      var clientId = [client.user,client.sessionKey].join("_");
+      var clientId = [userData.user,userData.sessionKey].join("_");
       var me = this;
       if(storeRequest.bucket && clientId){
          // create lambda function to be able to do both policy and non-policy
@@ -750,11 +755,11 @@ global.OrionServer = SC.Object.extend({
                me.store.createRecord(storeRequest,clientId,
                   function(rec){
                      rec = (me.policyModule && me.policyModule.filterRecords)? me.policyModule.filterRecord(storeRequest,rec): rec;
-                     me.sessionModule.storeBucketKey(client.user,client.sessionKey,rec.bucket, rec.key);
+                     me.sessionModule.storeBucketKey(userData.user,userData.sessionKey,rec.bucket, rec.key);
                      // first update the original client and then update the others
                      callback({createRecordResult: {record: rec, returnData: createRec.returnData}});
                      
-                     me.distributeChanges(rec,"create",client.user,client.sessionKey);
+                     me.distributeChanges(rec,"create",userData.user,userData.sessionKey);
                   }
                );
             }
@@ -773,17 +778,17 @@ global.OrionServer = SC.Object.extend({
       }
    },
    
-   onUpdate: function(message,client,callback){
+   onUpdate: function(message,userData,callback){
      var updateRec = message.updateRecord;
      var storeRequest = { 
         bucket: updateRec.bucket, 
         key: updateRec.key,
         action: 'update',
-        client: client,
+        userData: userData,
         recordData: updateRec.record,
         relations: updateRec.relations
      };
-     var clientId = [client.user,client.sessionKey].join("_");
+     var clientId = [userData.user,userData.sessionKey].join("_");
      var me = this;
      if(storeRequest.bucket && storeRequest.key && clientId){
         var updateAction = function(policyResponse){
@@ -795,7 +800,7 @@ global.OrionServer = SC.Object.extend({
                     var ret = {updateRecordResult: {record: record, returnData: updateRec.returnData}};
                     sys.log('OrionServer: sending updateRecordResult: ' + JSON.stringify(ret));
                     callback(ret); 
-                    me.distributeChanges(record,"update",client.user,client.sessionKey);
+                    me.distributeChanges(record,"update",userData.user,userData.sessionKey);
                  }
               );                         
            }
@@ -814,7 +819,7 @@ global.OrionServer = SC.Object.extend({
      }
    },
    
-   onDelete: function(message,client,callback){
+   onDelete: function(message,userData,callback){
       var deleteRec = message.deleteRecord;
       var bucket = deleteRec.bucket;
       var key = deleteRec.key;
@@ -824,23 +829,23 @@ global.OrionServer = SC.Object.extend({
       if(!record.bucket && bucket) record.bucket = bucket; 
       if(!record.key && key) record.key = key;
       // sending the bucket and key around is sufficient, and probably we didn't get more data anyway...
-      var clientId = [client.user,client.sessionKey].join("_");
+      var clientId = [userData.user,userData.sessionKey].join("_");
       var me = this;
       if(bucket && key && clientId && record){ 
          var storeRequest = { 
             bucket: bucket, 
             key: key,
             action: 'destroy',
-            client: client,
+            userData: userData,
             recordData: record,
             relations: deleteRec.relations
          };
          var destroyAction = function(policyResponse){
             if(policyResponse){
                me.store.deleteRecord(storeRequest, clientId, function(val){
-                  me.sessionModule.deleteBucketKey(client.user,client.sessionKey,bucket,key);
+                  me.sessionModule.deleteBucketKey(userData.user,userData.sessionKey,bucket,key);
                   callback({deleteRecordResult: { bucket: bucket, key: key, record: record, returnData: deleteRec.returnData}});
-                  me.distributeChanges(record,"delete",client.user,client.sessionKey);
+                  me.distributeChanges(record,"delete",userData.user,userData.sessionKey);
                });
             }
             else {

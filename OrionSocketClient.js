@@ -60,11 +60,11 @@ global.OrionSocketClient = SC.Object.extend({
 	},
 
 	send: function(message){
-	   sys.log("Send called on OrionSocketClient with message " + sys.inspect(message));
-	   sys.log('check on options: ' + (!this.isConnected || !(this.connection.readyState === 'open' || this.connection.readyState === 'writeOnly')) )
-	   sys.log('this.isConnected: ' + this.isConnected);
-	   sys.log('this.connection: ' + sys.inspect(this.connection));
-	   sys.log('this.connection.readyState: ' + this.connection.readyState);
+	   //sys.log("Send called on OrionSocketClient with message " + sys.inspect(message));
+	   sys.log('OrionSocketClient: send: check on options: ' + (!this.isConnected || !(this.connection.readyState === 'open' || this.connection.readyState === 'writeOnly')) )
+	   sys.log('OrionSocketClient: send: this.isConnected: ' + this.isConnected);
+	   //sys.log('this.connection: ' + sys.inspect(this.connection));
+	   sys.log('OrionSocketClient: this.connection.readyState: ' + this.connection.readyState);
 		if (!this.isConnected || !(this.connection.readyState === 'open' || this.connection.readyState === 'writeOnly')) {
 		   
 			//return this._queue(message);
@@ -78,7 +78,6 @@ global.OrionSocketClient = SC.Object.extend({
 		   this._write(JSON.stringify([message]));
    		//return this;
 		}
-		sys.log("After check??");
 	},
 
 	_onMessage: function(data){
