@@ -214,14 +214,21 @@ global.OrionUserCache = SC.Object.extend({
    
    queueRequest: function(request){
       // function to queue a request
+      if(!this._requestQueue || !(this._requestQueue instanceof Array)) this._requestQueue = [];
       this._requestQueue.push(request);
    },
    
    retrieveRequestQueue: function(){
       // function to return all queued records for this user in such a way that 
       // it can be sent of right away, empty the queue when the function returns
-      var queue = this._requestQueue;
-      this._requestQueue = [];
+      var queue;
+      if(this._requestQueue){
+         queue = this._requestQueue;
+         this._requestQueue = [];
+      }
+      else {
+         queue = [];
+      }
       return queue;
    }
    
