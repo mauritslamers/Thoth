@@ -1,15 +1,79 @@
 
+// needs ONRDatasource, make sure it is required
+//sc_require('controllers/ONRDataSource');
 
-Meetme.ONRXHRPollingDataSource = SC.DataSource.extend({
+
+SC.ONRXHRPollingDataSource = Meetme.ONRDataSource.extend({
+   
+   ONRHost: 'localhost',
+   
+   ONRPort: '8080',
+   
+   ONRURL: '/socket.io/xhr-polling',
+   
+   authenticationPane: false,
    
    send: function(data){
+      // check whether
 		this._sendXhr = this._request('send', 'POST');
+		this._sendXhr.setRequestHeader('User',this._user);
+		this._sendXhr.setRequestHeader('sessionKey',this._sessionKey);
+      data = JSON.stringify(data);
 		this._sendXhr.send('data=' + encodeURIComponent(data));
 	},
+	
+	authRequest: function(user,passwd,passwdIsMD5){
+	   // for XHRPolling an authRequest is a normal REST POST request
+	   var url = this.getHost() + '/auth';
+	   //var baseRequest = {auth:{ user: user, passwd: passwd, passwdIsMD5: passwdIsMD5}};
+	   var baseRequest = { user: user, passwd: passwd };
+	   this._user = user;
+      if(this.sessionKey) baseRequest.sessionKey = this.sessionKey; // resume the session if possible
+      console.log('sending auth request to ' + url);
+      /*
+      var req = this.getRequest(this._isXDomain());
+      console.log('getting request: ' + req);
+      req.open('POST', url); // adjust the url here...
+      req.setRequestHeader('Content-type', 'application/x-www-form-urlencoded; charset=utf-8');
+      var me = this;
+      req.onreadystatechange = function(){
+			var status;
+			if (this.readyState == 4){
+				this.onreadystatechange = function(){};
+				try { status = this.status; } catch(e){}
+				if (status == 200){
+				   // setup the xhr polling
+               me.connectXHRPolling();
+				}
+			}
+		};
+		req.send(JSON.stringify(baseRequest)); */
+		
+		SC.Request.postUrl('/auth',baseRequest).json().notify(this,this._authRequestCallback,this).send();
+   },
+   
+   
+   _authRequestCallback: function(response, dataSource){
+       console.log('response from the auth request: ' + response);
+       if (SC.ok(response)) {
+          var cookie = document.cookie;
+          if(cookie){
+             // split at = sign and get the second value
+             var sessionKey=cookie.split("=")[1];
+             // now set the session info
+             this._sessionKey = sessionKey;
+             // now do the setup of the XHRPolling
+             dataSource.connectXHRPollingSC();
+          }
+
+        }
+        if(response.isError) console.log(response);
+    },
+   
 
 	disconnect: function(){
 		if (this._xhr){
-			this._xhr.onreadystatechange = this._xhr.onload = empty;
+			this._xhr.onreadystatechange = this._xhr.onload = function(){};
 			this._xhr.abort();
 		}            
 		if (this._sendXhr) this._sendXhr.abort();
@@ -18,14 +82,16 @@ Meetme.ONRXHRPollingDataSource = SC.DataSource.extend({
 	},
 
 	_request: function(url, method, multipart){
-		var req = this.getRequest(this.base._isXDomain());
+		var req = this.getRequest(this._isXDomain());
 		if (multipart) req.multipart = true;
-		req.open(method || 'GET', this._prepareUrl() + (url ? '/' + url : '')); // adjust the url here...
+		var tmpURI = ['http://',this.getConnectUrl()].join('');
+		console.log('tmpURI = ' + tmpURI);
+		req.open(method || 'GET', tmpURI); // adjust the url here...
 		if (method == 'POST'){
 			req.setRequestHeader('Content-type', 'application/x-www-form-urlencoded; charset=utf-8');
 		}
 		return req;
-	}
+	},
    
    getRequest: function(xdomain){
 		if ('XDomainRequest' in window && xdomain) return new XDomainRequest();
@@ -39,7 +105,7 @@ Meetme.ONRXHRPollingDataSource = SC.DataSource.extend({
 		try {
 			var b = new ActiveXObject('Microsoft.XMLHTTP');
 			return b;      
-		} catch(e){}
+		} catch(error){}
 
 		return false;
 	},
@@ -53,30 +119,73 @@ Meetme.ONRXHRPollingDataSource = SC.DataSource.extend({
 	
 	type: 'xhr-polling',
 
-	connect: function(){
-		var self = this;
-		this._xhr = this._request(+ new Date, 'GET');
+	connect: function(store,callback){
+	   // setup the first connection and set the long polling action in motion
+	   // ONR wants to do auth first, even if auth is not set up...
+	   // this way we can get a session key, so ONR knows who we are...
+	   
+	   this.store = store;
+	   // set up the first connection
+	   if(!callback && this.authenticationPane){
+	      // if no callback, show the authentication Pane
+	      this.showLoginPane();
+	   }
+	   else {
+	      // do the callback
+	      callback();
+	   }
+   },
+   
+   connectXHRPolling: function(){
+		this._xhr = this._request(+ new Date(), 'GET');
+		this._xhr.setRequestHeader('User',this._user);
+		this._xhr.setRequestHeader('sessionKey',this._sessionKey);
+		var me = this;
 		if ('onload' in this._xhr){
+		   console.log('XHR Polling: found onload');
 			this._xhr.onload = function(){
-				if (this.responseText.length) self._onData(this.responseText);
-				self.connect();
+			   var dataHandler = me.createOnMessageHandler();
+				if (this.responseText.length) dataHandler(this.responseText);
+				me.setupGET(); // reinit the connection
 			};
 		} else {
+		   console.log('XHR Polling: didn\'t find onload');
 			this._xhr.onreadystatechange = function(){
 				var status;
-				if (self._xhr.readyState == 4){
-					self._xhr.onreadystatechange = empty;
-					try { status = self._xhr.status; } catch(e){}
+				if (me._xhr.readyState == 4){
+					me._xhr.onreadystatechange = function(){};
+					try { status = me._xhr.status; } catch(e){}
 					if (status == 200){
-						if (self._xhr.responseText.length) self._onData(self._xhr.responseText);
-						self.connect();
+					   var dataHandler = me.createOnMessageHandler();
+						if (me._xhr.responseText.length) dataHandler(me._xhr.responseText);
+						me.setupGET(); // reinit the connection
 					}
 				}
 			};	
 		}
-		this._xhr.send();
-	}
+		this._xhr.send();      
+   },
+
+   // can I do the same with an SC request?
+   connectXHRPollingSC: function(){
+      var dataHandler = this.createOnMessageHandler();
+      SC.Request.getUrl('socket.io/xhr-polling')
+         .header('User',this._user)
+         .header('sessionKey',this._sessionKey)
+         .json()
+         .notify(this,dataHandler)
+         .send();
+   },
+
+   onXHRResult: function(response,dataSource){
+      if(SC.ok(response)){
+         SC.RunLoop.begin();
+         var dataHandler = dataSource.createOnMessageHandler();
+         dataHandler(response.data);
+         SC.RunLoop.end();
+      }
+   }
 
 	
-})
+});
 
