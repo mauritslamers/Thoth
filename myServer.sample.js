@@ -1,9 +1,6 @@
 // let's have a go at using SC runtime stuff in node
 var sys = require('sys');
-require('./OrionServer');
-require('./OrionStore');
-require('./OrionSession');
-require('./OrionPolicies');
+require('./lib/OrionServer');
 
 /*
    You can set up a few items here to have ONR do for you.
