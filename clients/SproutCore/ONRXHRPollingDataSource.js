@@ -2,20 +2,15 @@ sc_require('controllers/ONRDataSource');
 
 SC.ONRXHRPollingDataSource = SC.ONRDataSource.extend({
    
-   ONRURL: '/socket.io/xhr-polling',
-   
    ONRRESTPrefix: '/REST',
+   
+   ONRURL: '/socket.io/xhr-polling',
    
    authenticationPane: false,
    
    send: function(data){
       // check whether
       console.log('ONRXHRPollingDataSource: trying to send: ' + JSON.stringify(data));
-		//this._sendXhr = this._request('send', 'POST');
-		//this._sendXhr.setRequestHeader('User',this._user);
-		//this._sendXhr.setRequestHeader('sessionKey',this._sessionKey);
-      //data = JSON.stringify(data);
-		//this._sendXhr.send('data=' + encodeURIComponent(data));
 		var dataToSend = 'data='+ encodeURIComponent(JSON.stringify(data));
 		SC.Request.postUrl(this.ONRURL,dataToSend).async().header('user',this.user).header('sessionkey',this.sessionKey).send();
 	},
@@ -28,8 +23,7 @@ SC.ONRXHRPollingDataSource = SC.ONRDataSource.extend({
 	   this.user = user;
       if(this.sessionKey) baseRequest.sessionKey = this.sessionKey; // resume the session if possible
       console.log('sending auth request to ' + url);
-		
-		SC.Request.postUrl('/auth',baseRequest).json().notify(this,this._authRequestCallback,this).send();
+		SC.Request.postUrl(url,baseRequest).json().notify(this,this._authRequestCallback,this).send();
 		// it would be nice to add some extra notifications here, in case the server is down etc...
    },
    
@@ -37,7 +31,10 @@ SC.ONRXHRPollingDataSource = SC.ONRDataSource.extend({
    _authRequestCallback: function(response, dataSource){
        console.log('response from the auth request: ' + response);
        if (SC.ok(response)) {
-          var cookie = document.cookie;
+          //var cookie = document.cookie;
+          // this doesn't seem to work for some strange reason...
+          var data = response.get('body');
+          var cookie = data.sessionCookie;
           if(cookie){
              // split at = sign and get the second value
              var sessionKey=cookie.split("=")[1];
@@ -105,7 +102,7 @@ SC.ONRXHRPollingDataSource = SC.ONRDataSource.extend({
    },
 
    connectXHRPollingSC: function(){
-      SC.Request.getUrl('socket.io/xhr-polling').async()
+      SC.Request.getUrl(this.ONRURL).async()
          .header('user',this.user)
          .header('sessionkey',this.sessionKey)
          .json()
