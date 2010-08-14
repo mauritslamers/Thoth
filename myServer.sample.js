@@ -1,4 +1,3 @@
-// let's have a go at using SC runtime stuff in node
 var sys = require('sys');
 require('./lib/OrionServer');
 
