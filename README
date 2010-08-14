@@ -1,9 +1,12 @@
 OrionNodeRiak
 
-A Websocket server for Node using Riak as a back end.
+A Node-based server database front end for Sproutcore.
 
 Features: 
+ - Websocket support
+ - Long polling support (might be a bit buggy still)
  - Session support
+ - Policy (role-based permissions) and record filtering support
  - Authentication support
  - Automated updates pushed to clients
 
@@ -14,12 +17,13 @@ Status: Alpha...
 	
 	What works: 
 		- WebSocket connections in a WebSocket enabled browser (still problems with FF4.01beta though)
+		- Long Polling XHR
 		- Authentication from userdata in a file
 		- Session support
 		- Automatic distribution of changes based on users previous requests
 		- support for sending queries to the server
-		- support for other storage modules, such as fixtures
-		- SC.DataSource client code
+		- support for custom storage modules, such as fixtures
+		- SC.DataSource client code for both XHR long polling and Websocket
 	
 	What still needs to be implemented:
 		- support for more Riak features in requests to the server
