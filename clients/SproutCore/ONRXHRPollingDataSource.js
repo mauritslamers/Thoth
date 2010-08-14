@@ -2,11 +2,9 @@ sc_require('controllers/ONRDataSource');
 
 SC.ONRXHRPollingDataSource = SC.ONRDataSource.extend({
    
-   ONRHost: 'localhost',
-   
-   ONRPort: '8080',
-   
    ONRURL: '/socket.io/xhr-polling',
+   
+   ONRRESTPrefix: '/REST',
    
    authenticationPane: false,
    
@@ -24,7 +22,7 @@ SC.ONRXHRPollingDataSource = SC.ONRDataSource.extend({
 	
 	authRequest: function(user,passwd,passwdIsMD5){
 	   // for XHRPolling an authRequest is a normal REST POST request
-	   var url = this.getHost() + '/auth';
+	   var url = this.ONRRESTPrefix + '/auth';
 	   //var baseRequest = {auth:{ user: user, passwd: passwd, passwdIsMD5: passwdIsMD5}};
 	   var baseRequest = { user: user, passwd: passwd };
 	   this.user = user;
