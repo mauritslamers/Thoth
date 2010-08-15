@@ -41,15 +41,16 @@ SC.ONRDataSource = SC.DataSource.extend({
      User configurable properties
      =====
    */
-
    
-   OrionNodeRiakHost: null,
+   ONRHost: null,
    
-   OrionNodeRiakPort: null,
+   ONRPort: null,
    
-   OrionNodeRiakURL: null,
+   ONRURL: null,
    
    authSuccessCallback: null, 
+   
+   authenticationPane: null,
    
    /*
      ========
@@ -57,15 +58,28 @@ SC.ONRDataSource = SC.DataSource.extend({
      ========
    */
    
-   _user: '',
+   user: '',
    
-   _sessionKey: '',
+   sessionKey: '',
    
    store: null, // a reference to the store where the (forced) updates need to be sent
          
    connect: function(store,callback){ // we need the store to direct the push traffic to
       throw("ONRDatasource connect: You are using the basic data source without traffic specification...");
    },
+   
+   _isXDomain: function(){
+		return this.ONRHost !== document.domain; // include the port number??
+	},
+   
+   getHost: function(){
+      return this.ONRPort? [this.ONRHost,this.ONRPort].join(":") : this.ONRHost;
+   },
+   
+   getConnectUrl: function(){
+      return [this.getHost(),this.ONRURL].join("");   
+   },
+   
    
    /*
      Dealing with websockets is a bit different from using the normal
@@ -211,12 +225,13 @@ SC.ONRDataSource = SC.DataSource.extend({
    createOnMessageHandler: function(){
       var me = this;
       return function(event){
+         console.log('onMessageHandler: called with ' + JSON.stringify(event));
          // first of all: try to parse the data, 
          // whether websocket is the best way to do binary data... 
          // if there is any binary data, there will be trouble...
          if(event.data){
             console.log("data in event: " + event.data);
-            var messages = JSON.parse(event.data);
+            var messages = (event.data instanceof String)? JSON.parse(event.data): event.data;
             if(messages){
                // check if messages is an array, if not, make one
                var data = (messages instanceof Array)? messages: [messages]; 
@@ -337,6 +352,7 @@ SC.ONRDataSource = SC.DataSource.extend({
       // let's create handlers for every type of action ...
       // if you need extra calls, add 'em here
       //console.log("Received data message: " + JSON.stringify(data));
+      data = (data instanceof Array)? data[0]: data; // make sure we are dealing with an object
       if(data.createRecord) this.onPushedCreateRecord(data);
       if(data.updateRecord) this.onPushedUpdateRecord(data);
       if(data.deleteRecord) this.onPushedDeleteRecord(data);
@@ -363,7 +379,7 @@ SC.ONRDataSource = SC.DataSource.extend({
       // used when a different user creates a record of which the current user should know
       var createRequest = data.createRecord;
       var bucket = createRequest.bucket, key = createRequest.key;
-      var rectype = this._recordTypeCache(bucket);
+      var rectype = this._recordTypeCache[bucket];
       //var relations = createRequest.relations; // cannot recall whether this is actually necessary ... 
       //var recordToCreate = relations? this._processRelationSet([createRequest.record],relations)
       //pushRetrieve: function(recordType, id, dataHash, storeKey) {
@@ -384,7 +400,7 @@ SC.ONRDataSource = SC.DataSource.extend({
       // the layout of the updateRecord call is similar to the updateRecordResult
       var bucket = updateRequest.bucket;
       var key = updateRequest.key;
-      var rectype = this._recordTypeCache(bucket);
+      var rectype = this._recordTypeCache[bucket];
       var result = this.store.pushRetrieve(rectype,key,updateRequest.record); 
       if(!result){
          // we need to think of a proper way to deal with not being allowed to update a record...
@@ -400,7 +416,7 @@ SC.ONRDataSource = SC.DataSource.extend({
       var deleteRequest = data.deleteRecord;
       var bucket = deleteRequest.bucket;
       var key = deleteRequest.key;
-      var rectype = this._recordTypeCache(bucket);
+      var rectype = this._recordTypeCache[bucket];
       var result = this.store.pushDestroy(rectype,key);
       if(!result){
          alert("The server has tried to delete a record from your application, but wasn't allowed to do so!");
@@ -497,7 +513,7 @@ SC.ONRDataSource = SC.DataSource.extend({
    
    fetch: function(store,query){      
       var rectype, bucket;
-      
+      //console.log('ONRDataSource: fetch called!');
       rectype = query.get('recordType');
       if(rectype){
          bucket = rectype.prototype.bucket;
@@ -623,8 +639,9 @@ SC.ONRDataSource = SC.DataSource.extend({
          var requestKey = fetchinfo.returnData.requestKey;
          if(requestKey){ // don't do anything if no proper requestkey could be located
             // proper request Key, get the cached stuff
-            var curRequestData   = this._requestCache[requestKey],
-                storeKeysInCache = curRequestData.storeKeys, // if there are store keys, records have been received previously
+            var curRequestData   = this._requestCache[requestKey];
+            if(!curRequestData) return; // if data is received but no store key exists anymore, ignore...
+            var storeKeysInCache = curRequestData.storeKeys, // if there are store keys, records have been received previously
                 unsavedRelations = curRequestData.unsavedRelations,
                 isComplete,
                 recordsInData = fetchinfo.records,
