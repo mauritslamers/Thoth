@@ -27,7 +27,7 @@ myServer.start();
 //sys.puts("OrionServer: " + sys.inspect(OrionServer));
 // start the repl for debugging
 //var repl = require('repl');
-//repl.start().scope.myServer = myServer;
+//repl.start().context.myServer = myServer;
 
 
 
