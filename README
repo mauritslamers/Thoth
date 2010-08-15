@@ -7,13 +7,14 @@ Features:
  - Long polling support (might be a bit buggy still)
  - Session support
  - Policy (role-based permissions) and record filtering support
- - Authentication support
- - Automated updates pushed to clients
+ - Authentication support (async)
+ - Easy to implement custom storage modules (example mySQL, Riak and OrionDB storage modules included)
+ - Automated updates pushed to connected clients
 
 Written with a SproutCore application in mind. (http://www.sproutcore.com)
 
-Status: Alpha... 
-	I wrote a SC.DataSource, which can be found in clients/SproutCore
+Status: Between alpha and beta status...  
+	Two datasources, one for Websockets and one for XHR long polling are included. Both can be found in clients/SproutCore
 	
 	What works: 
 		- WebSocket connections in a WebSocket enabled browser (still problems with FF4.01beta though)
@@ -24,6 +25,7 @@ Status: Alpha...
 		- support for sending queries to the server
 		- support for custom storage modules, such as fixtures
 		- SC.DataSource client code for both XHR long polling and Websocket
+		- MySQL support (you need the mysql client and bindings from my node-mysql-mysqlclient fork)
 	
 	What still needs to be implemented:
 		- support for more Riak features in requests to the server
