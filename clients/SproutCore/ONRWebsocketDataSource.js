@@ -1,7 +1,7 @@
 
 
 
-SC.OrionNodeRiakDataSource = SC.ONRDataSource.extend({
+SC.ONRWebsocketDataSource = SC.ONRDataSource.extend({
    
    OrionNodeRiakHost: 'localhost',
    
