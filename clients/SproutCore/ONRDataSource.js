@@ -231,7 +231,7 @@ SC.ONRDataSource = SC.DataSource.extend({
          // if there is any binary data, there will be trouble...
          if(event.data){
             console.log("data in event: " + event.data);
-            var messages = (event.data instanceof String)? JSON.parse(event.data): event.data;
+            var messages = (SC.typeOf(event.data) === SC.T_STRING)? JSON.parse(event.data): event.data;
             if(messages){
                // check if messages is an array, if not, make one
                var data = (messages instanceof Array)? messages: [messages]; 
