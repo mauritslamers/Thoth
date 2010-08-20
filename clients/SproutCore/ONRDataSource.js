@@ -366,6 +366,39 @@ SC.ONRDataSource = SC.DataSource.extend({
       if(data.createRecordError) this.onCreateRecordError(data);
       if(data.updateRecordError) this.onUpdateRecordError(data);
       if(data.deleteRecordError) this.onDeleteRecordError(data);
+      if(data.rpcResult) this.onRPCResult(data);
+      if(data.rpcError) this.onRPCError(data);
+   },
+   
+   _rpcRequestCache: null,
+   
+   rpcRequest: function(functionName,params,callback){
+      // generate an RPC request to ONR
+      var cacheKey = this._createRequestCacheKey();
+      if(!this._rpcRequestCache) this._rpcRequestCache = {};
+      if(!this._rpcRequestCache[cacheKey]) this._rpcRequestCache[cacheKey] = { callback: callback };
+      this.send( { rpcRequest: { functionName: functionName, params: params, returnData: { rpcCacheKey: cacheKey } }}); 
+   },
+   
+   onRPCResult: function(data){
+      if(!this._rpcRequestCache) throw "ONRDataSource: received an RPC onRPC result but no request has been sent";
+      else {
+         var rpcResult = data.rpcResult;
+         if(rpcResult){
+            var cacheKey = rpcResult.returnData.cacheKey;
+            this._rpcRequestCache[rpcResult.cacheKey].callback(rpcResult);
+         }
+         else throw "ONRDataSource: received an invalid rpcResult message";
+      }
+   },
+   
+   onRPCError: function(data){
+      if(!this._rpcRequestCache) throw "ONRDataSource: received an RPC onRPC error but no request has been sent";
+      else {
+         var rpcError = data.rpcError;
+         var cacheKey = rpcResult.returnData.cacheKey;
+         this._rpcRequestCache[rpcResult.cacheKey].callback(rpcError);
+      }
    },
    
    /*
