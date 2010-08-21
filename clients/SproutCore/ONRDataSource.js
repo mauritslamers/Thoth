@@ -225,13 +225,13 @@ SC.ONRDataSource = SC.DataSource.extend({
    createOnMessageHandler: function(){
       var me = this;
       return function(event){
-         console.log('onMessageHandler: called with ' + JSON.stringify(event));
+         //console.log('onMessageHandler: called with ' + JSON.stringify(event));
          // first of all: try to parse the data, 
          // whether websocket is the best way to do binary data... 
          // if there is any binary data, there will be trouble...
          if(event.data){
-            console.log("data in event: " + event.data);
-            var messages = (SC.typeOf(event.data) === SC.T_STRING)? JSON.parse(event.data): event.data;
+            var messages = (event.data instanceof String)? JSON.parse(event.data): event.data;
+            //console.log("data in event: " + event.data);
             if(messages){
                // check if messages is an array, if not, make one
                var data = (messages instanceof Array)? messages: [messages]; 
@@ -351,7 +351,7 @@ SC.ONRDataSource = SC.DataSource.extend({
       // this is the part where interaction with the store comes into play
       // let's create handlers for every type of action ...
       // if you need extra calls, add 'em here
-      //console.log("Received data message: " + JSON.stringify(data));
+      console.log("Received data message: " + JSON.stringify(data));
       data = (data instanceof Array)? data[0]: data; // make sure we are dealing with an object
       if(data.createRecord) this.onPushedCreateRecord(data);
       if(data.updateRecord) this.onPushedUpdateRecord(data);
@@ -386,7 +386,7 @@ SC.ONRDataSource = SC.DataSource.extend({
          var rpcResult = data.rpcResult;
          if(rpcResult){
             var cacheKey = rpcResult.returnData.cacheKey;
-            this._rpcRequestCache[rpcResult.cacheKey].callback(rpcResult);
+            this._rpcRequestCache[cacheKey].callback(rpcResult);
          }
          else throw "ONRDataSource: received an invalid rpcResult message";
       }
@@ -396,8 +396,8 @@ SC.ONRDataSource = SC.DataSource.extend({
       if(!this._rpcRequestCache) throw "ONRDataSource: received an RPC onRPC error but no request has been sent";
       else {
          var rpcError = data.rpcError;
-         var cacheKey = rpcResult.returnData.cacheKey;
-         this._rpcRequestCache[rpcResult.cacheKey].callback(rpcError);
+         var cacheKey = rpcError.returnData.cacheKey;
+         this._rpcRequestCache[cacheKey].callback(rpcError);
       }
    },
    
@@ -411,6 +411,7 @@ SC.ONRDataSource = SC.DataSource.extend({
       // function to process the creation of a record in the store with the pushed data by the server
       // used when a different user creates a record of which the current user should know
       var createRequest = data.createRecord;
+      console.log("onPushedUpdateRecord called with: " + data);
       var bucket = createRequest.bucket, key = createRequest.key;
       var rectype = this._recordTypeCache[bucket];
       //var relations = createRequest.relations; // cannot recall whether this is actually necessary ... 
@@ -429,6 +430,7 @@ SC.ONRDataSource = SC.DataSource.extend({
       // function to update a change in a record in the store with pushed data by the server
       // used when a different user updates a record of which the current user should know
       // store.pushRetrieve
+      console.log("onPushedUpdateRecord called with: " + data);
       var updateRequest = data.updateRecord;
       // the layout of the updateRecord call is similar to the updateRecordResult
       var bucket = updateRequest.bucket;
@@ -455,6 +457,8 @@ SC.ONRDataSource = SC.DataSource.extend({
          alert("The server has tried to delete a record from your application, but wasn't allowed to do so!");
       }
    },
+   
+   
    
    /* 
       ======
@@ -850,17 +854,19 @@ SC.ONRDataSource = SC.DataSource.extend({
       return ret.join('');
    },
    
+   /* not used...
    _getRelations: function(recordType){
       var many = [], one = [],
           curItem,
           recType;
       
-      recType = recordType.isClass? recordType: recordType.prototype; // get the class in case of an instance of the model
+      //recType = recordType.isClass? recordType: recordType.prototype; // get the class in case of an instance of the model
+      recType = recordType.prototype;
       for(var i in recType){
          curItem = recType[i];
          if(curItem && curItem.kindOf && curItem.kindOf(SC.RecordAttribute)){
             if(curItem.kindOf(SC.ManyAttribute)) many.push(i);
-            if(curItem.kindOf(SC.OneAttribute)) one.push(i);
+            if(curItem.kindOf(SC.SingleAttribute)) one.push(i);
          }
       }
       if((many.length > 0) || (one.length > 0)){
@@ -868,7 +874,7 @@ SC.ONRDataSource = SC.DataSource.extend({
       }
       else return NO; // no relations found
    },
-   
+   */
    _getRelationsArray: function(recordType) {
       var ret = [], recType, curItem;
       
@@ -884,9 +890,13 @@ SC.ONRDataSource = SC.DataSource.extend({
                oppositeRecType = curItem.typeClass().prototype;
                ret.push({ type: 'toMany', bucket: oppositeRecType.bucket, propertyName: i }); 
             } 
-            if(curItem.kindOf(SC.OneAttribute)){
+            if(curItem.kindOf(SC.SingleAttribute)){
                oppositeRecType = curItem.typeClass().prototype;
-               ret.push({ type: 'toOne', bucket: oppositeRecType.bucket, propertyName: i}); 
+               var reverse = curItem.reverse;
+               // check whether the reverse is a toMany
+               if(reverse && oppositeRecType[reverse].kindOf(SC.ManyAttribute)){
+                  ret.push({ type: 'toOne', bucket: oppositeRecType.bucket, propertyName: i}); 
+               }
             } 
          }
       }
@@ -911,6 +921,11 @@ SC.ONRDataSource = SC.DataSource.extend({
    
    retrieveRecord: function(store,storeKey,id){
       var recType = store.recordTypeFor(storeKey);
+      var bucket = recType.prototype.bucket;
+      // it is possible for the store to retrieve records not previously fetched, so we need to 
+      // update the recordType cache in case we get an update in the future
+      if(!this._recordTypeCache[bucket]) this._recordTypeCache[bucket] = recType;
+      
       var relations = this._getRelationsArray(recType);
       var recordId = id? id: store.idFor(storeKey);
       // do we need a requestCache? Yes we do, as we need the store info, and in case of relations
@@ -919,7 +934,7 @@ SC.ONRDataSource = SC.DataSource.extend({
       var requestCacheKey = this._createRequestCacheKey();
       //console.log("Trying to refresh data of record storeKey: " + storeKey);
       this._requestCache[requestCacheKey] = { store: store, storeKey: storeKey, recordType: recType, id: recordId, numResponses: numResponses };
-      var bucket = recType.prototype.bucket;
+
       if(!bucket){ // prevent doing anything if the bucket property doesn't exist
          console.log("You tried to refresh a record based on a Model that hasn't a bucket property. Forgot something?");
          return NO;
