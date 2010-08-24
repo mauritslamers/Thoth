@@ -230,7 +230,7 @@ SC.ONRDataSource = SC.DataSource.extend({
          // whether websocket is the best way to do binary data... 
          // if there is any binary data, there will be trouble...
          if(event.data){
-            var messages = (event.data instanceof String)? JSON.parse(event.data): event.data;
+            var messages = (SC.typeOf(event.data) === SC.T_STRING)? JSON.parse(event.data): event.data;
             //console.log("data in event: " + event.data);
             if(messages){
                // check if messages is an array, if not, make one
