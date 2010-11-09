@@ -553,7 +553,13 @@ SC.ONRDataSource = SC.DataSource.extend({
       //console.log('ONRDataSource: fetch called!');
       rectype = query.get('recordType');
       if(rectype){
-         bucket = rectype.prototype.bucket;
+        try{
+          bucket = rectype.prototype.bucket; 
+        }
+        catch(e) {
+          var err = SC.Error.create({ message: "ONR cannot retrieve the bucket property from the record model. This may be caused by an improper invocation of SC.Query.local()."});
+          throw(err);
+        }
          // cache rectype by bucket
          this._recordTypeCache[bucket] = rectype;
       }
