@@ -32,6 +32,7 @@ Status: Between alpha and beta status...
 	What still needs to be implemented:
 		- support for more Riak features in requests to the server
 		- additional authentication modules
+		- adding automatic table creation for MySQL DBs
 		- binary data support
 
 Many thanks to Jeff Pittman (geojeff) and juan77 for their continuing support and willingness to test and catch bugs!
