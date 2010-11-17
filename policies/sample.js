@@ -4,7 +4,7 @@
 /* 
 The format of this policy file is
 
-exports.resource = OrionPolicyModel.create({
+exports.resource = ThothPolicyModel.create({
    action: function(storeRequest,user,record,callback){
    
    }
@@ -23,11 +23,11 @@ The return value of every function can be:
 - a record: Access of this action type to the record is allowed, and needs to use the record returned as it has modifications
 
 These functions are NOT called if the users role is one of the predefined roles in either the myPolicies file or
-in the created OrionPolicies object. The policy module will check this before calling these functions.
+in the created ThothPolicies object. The policy module will check this before calling these functions.
 
 */
 
-exports.sample = OrionPolicyModel.create({
+exports.sample = ThothPolicyModel.create({
    
    // deny access by default, override to have the functions return anything else by default
    defaultResponse: NO,

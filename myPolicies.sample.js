@@ -1,11 +1,11 @@
 /* file to gather all policies to enable loading them at once and defining which policies to load exactly */
 if(!global.SC) require('./sc/runtime/core');
 
-// if you want to use extended versions of OrionPolicyModel, this is the place to require them
+// if you want to use extended versions of ThothPolicyModel, this is the place to require them
 // as it will ensure that the models are defined when the policies are loaded.
 // Make sure though your extensions are defined in the global name space!
 // If you rather choose not to define your extensions global, you have to require your extensions inside the policy files
-require('./OrionPolicyModel');
+require('./PolicyModel');
 
 // define the path where to look for policies:
 exports.policyPath = './policies';

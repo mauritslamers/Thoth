@@ -1,11 +1,8 @@
-========
- Orion Node Riak is being renamed and will reside at a new repo. http://github.com/mauritslamers/Thoth
-=======
+Thoth
 
+Thoth is a Node-based communications hub for multi-user SproutCore applications, serving as a unified database interface and automating distribution of data changes
 
-OrionNodeRiak
-
-A Node-based server database front end for Sproutcore.
+It simplifies the specification and maintenance of data models by only requiring them in your SproutCore application when used with a nonSQL database.
 
 Features: 
  - Websocket support
@@ -17,12 +14,12 @@ Features:
  - Automated updates pushed to connected clients
 
 Written with a SproutCore application in mind. (http://www.sproutcore.com)
+You can use Thoth in your SproutCore application by using the SC framework, which can be found on http://github.com/mauritslamers/Thoth-SC
 
 Status: Between alpha and beta status...  
-	Two datasources, one for Websockets and one for XHR long polling are included. Both can be found in clients/SproutCore
 	
 	What works: 
-		- WebSocket connections in a WebSocket enabled browser (still problems with FF4.01beta though)
+		- WebSocket connections in a WebSocket enabled browser
 		- Long Polling XHR
 		- Authentication from userdata in a file
 		- Session support
