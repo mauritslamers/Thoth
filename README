@@ -1,3 +1,8 @@
+========
+ Orion Node Riak is being renamed and will reside at a new repo. http://github.com/mauritslamers/Thoth
+=======
+
+
 OrionNodeRiak
 
 A Node-based server database front end for Sproutcore.
