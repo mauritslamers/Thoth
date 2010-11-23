@@ -13,6 +13,10 @@ require('./lib/Server');
    
 */
 
+// require the store you need here:
+//require('./RiakStore');
+//require('./FixturesStore');
+//require('./OrionDBStore');
 
 var myServer = ThothServer.create({
    port: 8080,

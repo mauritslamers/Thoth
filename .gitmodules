@@ -4,3 +4,6 @@
 [submodule "lib/libmysqlclient"]
 	path = lib/libmysqlclient
 	url = git://github.com/Sannis/node-mysql-libmysqlclient.git
+[submodule "lib/node-mysql"]
+	path = lib/node-mysql
+	url = git://github.com/felixge/node-mysql.git
