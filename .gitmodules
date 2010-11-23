@@ -7,3 +7,6 @@
 [submodule "lib/node-mysql"]
 	path = lib/node-mysql
 	url = git://github.com/felixge/node-mysql.git
+[submodule "lib/node-ldap"]
+	path = lib/node-ldap
+	url = git://github.com/jeremycx/node-LDAP.git
