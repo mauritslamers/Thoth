@@ -10,3 +10,6 @@
 [submodule "lib/node-couchdb"]
 	path = lib/node-couchdb
 	url = git@github.com:mauritslamers/node-couchdb.git
+[submodule "lib/node-ldap"]
+	path = lib/node-ldap
+	url = git://github.com/jeremycx/node-LDAP.git
