@@ -1,9 +1,9 @@
-[submodule "lib/riak-js"]
-	path = lib/riak-js
-	url = git://github.com/frank06/riak-js.git
 [submodule "lib/libmysqlclient"]
 	path = lib/libmysqlclient
 	url = git://github.com/Sannis/node-mysql-libmysqlclient.git
 [submodule "lib/node-mysql"]
 	path = lib/node-mysql
 	url = git://github.com/felixge/node-mysql.git
+[submodule "lib/node-riak"]
+	path = lib/node-riak
+	url = git@github.com:mauritslamers/node-riak
