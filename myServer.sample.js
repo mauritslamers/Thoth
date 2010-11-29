@@ -1,11 +1,12 @@
+
 var sys = require('sys');
-require('./lib/Server');
+var Thoth = require('./lib/Thoth').Thoth;
 
 /*
-   You can set up a few items here to have ONR do for you.
-   You need at least a store.
-   Be aware that ThothStore is a default store and shouldn't be used as the DB calls are not implemented.
-   Create a custom store by implementing the DB calls, or choose a bundled store, like ThothRiakStore or ThothDBStore.
+   You need to assemble a Thoth server here. You need at least a store.
+   Be aware that Store is a default store and shouldn't be used as the DB calls are not implemented.
+   Create a custom store by implementing the DB calls, or choose a bundled store, like RiakStore,
+   MySQLStore_mysqlClient or DBStore.
 
    The same goes for the authModule.
 
@@ -14,24 +15,20 @@ require('./lib/Server');
 */
 
 // require the store you need here:
-//require('./RiakStore');
-//require('./FixturesStore');
-//require('./OrionDBStore');
+var RiakStore = require('./lib/RiakStore').RiakStore;
+var MySQLStoreMySQLClient = require('./lib/MySQLStore_mysqlClient').MySQLStoreMySQLClient;
+var MySQLStoreNodeMySQL = require('./lib/MySQLStore_node-mysql').MySQLStoreNodeMySQL;
 
-var myServer = ThothServer.create({
+var myServer = Thoth.Server.create({
    port: 8080,
-   store: ThothStore.create(), 
-   authModule: ThothFileAuth.create({ fileName: './myUsers'}),
-   sessionModule: ThothSession.create({ sessionName: 'ThothServer' }),
-   policyModule: ThothPolicies.create({ policyFile: './myPolicies'})
+   store: Thoth.Store.create(), 
+   authModule: Thoth.FileAuth.create({ fileName: './myUsers'}),
+   sessionModule: Thoth.Session.create({ sessionName: 'ThothServer' }),
+   policyModule: Thoth.Policies.create({ policyFile: './myPolicies'})
 });
 
 myServer.start();
 
-//sys.puts("ThothServer: " + sys.inspect(ThothServer));
-// start the repl for debugging
-//var repl = require('repl');
-//repl.start().context.myServer = myServer;
 
 
 
