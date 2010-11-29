@@ -1,5 +1,5 @@
-[submodule "riak-js"]
-	path = riak-js
+[submodule "lib/riak-js"]
+	path = lib/riak-js
 	url = git://github.com/frank06/riak-js.git
 [submodule "lib/libmysqlclient"]
 	path = lib/libmysqlclient
