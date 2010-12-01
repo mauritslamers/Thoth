@@ -46,7 +46,7 @@ Installation:
   
   The easiest way is cloning this repository. Be sure to also checkout the submodules by calling
   
-  git submodules update --init 
+  git submodule update --init 
   
   in the Thoth folder after cloning or forking.
 
