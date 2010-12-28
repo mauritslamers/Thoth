@@ -124,4 +124,13 @@ it('should test async call') {
 
 });
 
+it('shows asynchronous test', function(){
+  setTimeout(function(){
+    expect('second').toEqual('second');
+    asyncSpecDone();
+  }, 1);
+  expect('first').toEqual('first');
+  asyncSpecWait();
+});
+
 */
