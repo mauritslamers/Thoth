@@ -15,4 +15,4 @@
 	url = git://github.com/jeremycx/node-LDAP.git
 [submodule "tests/jasmine-node"]
 	path = tests/jasmine-node
-	url = git://github.com/mhevery/jasmine-node.git
+	url = git://github.com/mauritslamers/jasmine-node.git
