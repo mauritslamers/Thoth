@@ -1,86 +1,10 @@
 var Thoth = require('../../lib/Thoth').Thoth;
 var sys = require('sys');
 
+var APIRequests = require('../testdata/APIRequests');
+var StoreRequests = require('../testdata/StoreRequests');
+
 describe('Thoth Server test', function(){
-
-  var userData = { user: 'testUser', sessionKey: 'test14' };
-
-  var fakeModel = {
-    bucket: 'test',
-    key: '513',
-    primaryKey: 'test1',
-    conditions: 'test = {test}', 
-    parameters: { test: 'test' },
-    properties: [ { key: 'test1', type: 'String'}, { key: 'test2', type: 'Number'}],
-    relations: [{ propertyName: 'test3', type: 'toMany', bucket: 'test3'},
-                { propertyName: 'test4', type: 'toOne', bucket: 'test4'}],
-    record: { test1: 'test1', test2: 123 }
-  };
-
-  var returnData = { returnKey: 'test14' }; 
-
-  var fetchRequest = { 
-    fetch: { 
-      bucket: fakeModel.bucket,
-      primaryKey: fakeModel.primaryKey,
-      conditions: fakeModel.conditions,
-      parameters: fakeModel.parameters,
-      properties: fakeModel.properties,
-      relations: fakeModel.relations,
-      returnData: returnData
-    }
-  };
-
-  var fetchStoreRequest = { 
-     bucket: fakeModel.bucket, 
-     action: 'refresh',
-     primaryKey: fakeModel.primaryKey,
-     userData: userData,
-     conditions: fakeModel.conditions, 
-     parameters: fakeModel.parameters,
-     properties: fakeModel.properties,
-     relations: fakeModel.relations 
-  };
-  
-  var refreshRequest = {
-    refreshRecord: {
-      bucket: fakeModel.bucket,
-      key: fakeModel.key,
-      primaryKey: fakeModel.primaryKey,
-      properties: fakeModel.properties,
-      relations: fakeModel.relations
-    }
-  };
-
-  var refreshStoreRequest = { 
-     bucket: fakeModel.bucket, 
-     primaryKey: fakeModel.primaryKey,
-     action: 'refresh',
-     userData: userData,
-     key: fakeModel.key,
-     properties: fakeModel.properties,
-     relations: fakeModel.relations
-  };
-
-  var createRequest = {
-    createRecord: {
-      bucket: fakeModel.bucket,
-      key: fakeModel.key,
-      primaryKey: fakeModel.primaryKey,
-      record: fakeModel.record,
-      relations: fakeModel.relations
-    }
-  };
-
-  var createStoreRequest = { 
-     bucket: fakeModel.bucket, 
-     key: fakeModel.key,
-     primaryKey: fakeModel.primaryKey,
-     action: 'create',
-     userData: userData,
-     recordData: fakeModel.record,
-     relations: fakeModel.relations
-  };
   
   describe('Thoth on handlers test', function(){
     // fake a request by a socket client and check the proper callback
@@ -150,26 +74,41 @@ describe('Thoth Server test', function(){
       var cb = jasmine.createSpy();
       var Server = Thoth.Server.create({ store: createFakeStore(cb) });  
 
-      Server.onFetch(fetchRequest,userData,function(){ return; });
-      expect(cb).toHaveBeenCalledWith(fetchStoreRequest);
+      Server.onFetch(APIRequests.fetchRequest,StoreRequests.userData,function(){ return; });
+      expect(cb).toHaveBeenCalledWith(StoreRequests.fetchStoreRequest);
     });
     
     it('onRefresh storeRequest test', function(){
       var cb = jasmine.createSpy();
       var Server = Thoth.Server.create({ store: createFakeStore(cb) });  
 
-      Server.onRefresh(refreshRequest,userData,function(){ return; });
-      expect(cb).toHaveBeenCalledWith(refreshStoreRequest);
+      Server.onRefresh(APIRequests.refreshRequest,StoreRequests.userData,function(){ return; });
+      expect(cb).toHaveBeenCalledWith(StoreRequests.refreshStoreRequest);
     });
     
     it('onCreate storeRequest test', function(){
       var cb = jasmine.createSpy();
       var Server = Thoth.Server.create({ store: createFakeStore(cb) });  
 
-      Server.onCreate(createRequest,userData,function(){ return; });
-      expect(cb).toHaveBeenCalledWith(createStoreRequest);
+      Server.onCreate(APIRequests.createRequest,StoreRequests.userData,function(){ return; });
+      expect(cb).toHaveBeenCalledWith(StoreRequests.createStoreRequest);
     });
-    
+
+    it('onUpdate storeRequest test', function(){
+      var cb = jasmine.createSpy();
+      var Server = Thoth.Server.create({ store: createFakeStore(cb) });  
+
+      Server.onUpdate(APIRequests.updateRequest,StoreRequests.userData,function(){ return; });
+      expect(cb).toHaveBeenCalledWith(StoreRequests.updateStoreRequest);
+    });    
+
+    it('onDelete storeRequest test', function(){
+      var cb = jasmine.createSpy();
+      var Server = Thoth.Server.create({ store: createFakeStore(cb) });  
+
+      Server.onDelete(APIRequests.deleteRequest,StoreRequests.userData,function(){ return; });
+      expect(cb).toHaveBeenCalledWith(StoreRequests.deleteStoreRequest);
+    });
 
   });
   

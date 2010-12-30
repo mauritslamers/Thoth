@@ -54,6 +54,14 @@ describe('Thoth package test',function(){
       expect(junct).not.toBeNull();
     });
     
+    it("Thoth log function exists", function() {
+      expect(Thoth.log).toBeDefined();
+    });
+    
+    it("Thoth copy function exists", function() {
+      expect(Thoth.copy).toBeDefined();
+    });
+    
   });
   
   describe('Thoth Additional module check', function(){
