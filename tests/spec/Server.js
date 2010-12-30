@@ -3,6 +3,7 @@ var sys = require('sys');
 
 var APIRequests = require('../testdata/APIRequests');
 var StoreRequests = require('../testdata/StoreRequests');
+var Constants = require('../../lib/core/Constants');
 
 describe('Thoth Server test', function(){
   
@@ -75,7 +76,7 @@ describe('Thoth Server test', function(){
       var Server = Thoth.Server.create({ store: createFakeStore(cb) });  
 
       Server.onFetch(APIRequests.fetchRequest,StoreRequests.userData,function(){ return; });
-      expect(cb).toHaveBeenCalledWith(StoreRequests.fetchStoreRequest);
+      expect(cb).toHaveBeenCalledWith(StoreRequests.createStoreRequest(Constants.ACTION_FETCH));
     });
     
     it('onRefresh storeRequest test', function(){
@@ -83,7 +84,7 @@ describe('Thoth Server test', function(){
       var Server = Thoth.Server.create({ store: createFakeStore(cb) });  
 
       Server.onRefresh(APIRequests.refreshRequest,StoreRequests.userData,function(){ return; });
-      expect(cb).toHaveBeenCalledWith(StoreRequests.refreshStoreRequest);
+      expect(cb).toHaveBeenCalledWith(StoreRequests.createStoreRequest(Constants.ACTION_REFRESH));
     });
     
     it('onCreate storeRequest test', function(){
@@ -91,7 +92,7 @@ describe('Thoth Server test', function(){
       var Server = Thoth.Server.create({ store: createFakeStore(cb) });  
 
       Server.onCreate(APIRequests.createRequest,StoreRequests.userData,function(){ return; });
-      expect(cb).toHaveBeenCalledWith(StoreRequests.createStoreRequest);
+      expect(cb).toHaveBeenCalledWith(StoreRequests.createStoreRequest(Constants.ACTION_CREATE));
     });
 
     it('onUpdate storeRequest test', function(){
@@ -99,7 +100,7 @@ describe('Thoth Server test', function(){
       var Server = Thoth.Server.create({ store: createFakeStore(cb) });  
 
       Server.onUpdate(APIRequests.updateRequest,StoreRequests.userData,function(){ return; });
-      expect(cb).toHaveBeenCalledWith(StoreRequests.updateStoreRequest);
+      expect(cb).toHaveBeenCalledWith(StoreRequests.createStoreRequest(Constants.ACTION_UPDATE));
     });    
 
     it('onDelete storeRequest test', function(){
@@ -107,7 +108,7 @@ describe('Thoth Server test', function(){
       var Server = Thoth.Server.create({ store: createFakeStore(cb) });  
 
       Server.onDelete(APIRequests.deleteRequest,StoreRequests.userData,function(){ return; });
-      expect(cb).toHaveBeenCalledWith(StoreRequests.deleteStoreRequest);
+      expect(cb).toHaveBeenCalledWith(StoreRequests.createStoreRequest(Constants.ACTION_DELETE));
     });
 
   });
