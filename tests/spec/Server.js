@@ -1,11 +1,37 @@
 var Thoth = require('../../lib/Thoth').Thoth;
 var sys = require('sys');
 
-var APIRequests = require('../testdata/APIRequests');
+var createAPIRequest = require('../testdata/APIRequests').createAPIRequest;
 var StoreRequests = require('../testdata/StoreRequests');
+var createStoreRequest = StoreRequests.createStoreRequest;
+var userData = StoreRequests.userData;
 var Constants = require('../../lib/core/Constants');
 
 describe('Thoth Server test', function(){
+  
+  var createFakeStore = function(spy){
+    return { // a fake store to send the storeRequest to the callback
+      createRecord: function(storeRequest,clientId,cb){
+        spy(storeRequest);
+      },
+    
+      updateRecord: function(storeRequest,clientId,cb){      
+        spy(storeRequest);
+      },
+    
+      deleteRecord: function(storeRequest,clientId,cb){
+        spy(storeRequest);
+      },
+    
+      fetch: function(storeRequest,clientId,cb){
+        spy(storeRequest);
+      },
+    
+      refreshRecord: function(storeRequest,clientId,cb){
+        spy(storeRequest);
+      }
+    };
+  };
   
   describe('Thoth on handlers test', function(){
     // fake a request by a socket client and check the proper callback
@@ -36,31 +62,6 @@ describe('Thoth Server test', function(){
         relations: [ { propertyName: '', type: 'toOne', bucket: ''}, { propertyName: '', type: 'toMany', bucket: ''}]}}
     
      */
-
-    
-    var createFakeStore = function(spy){
-      return { // a fake store to send the storeRequest to the callback
-        createRecord: function(storeRequest,clientId,cb){
-          spy(storeRequest);
-        },
-      
-        updateRecord: function(storeRequest,clientId,cb){      
-          spy(storeRequest);
-        },
-      
-        deleteRecord: function(storeRequest,clientId,cb){
-          spy(storeRequest);
-        },
-      
-        fetch: function(storeRequest,clientId,cb){
-          spy(storeRequest);
-        },
-      
-        refreshRecord: function(storeRequest,clientId,cb){
-          spy(storeRequest);
-        }
-      };
-    };
     
     it('Server has on* handlers', function(){
       var Server = Thoth.Server.create({ store: createFakeStore() });
@@ -75,45 +76,85 @@ describe('Thoth Server test', function(){
       var cb = jasmine.createSpy();
       var Server = Thoth.Server.create({ store: createFakeStore(cb) });  
 
-      Server.onFetch(APIRequests.fetchRequest,StoreRequests.userData,function(){ return; });
-      expect(cb).toHaveBeenCalledWith(StoreRequests.createStoreRequest(Constants.ACTION_FETCH));
+      Server.onFetch(createAPIRequest(Constants.ACTION_FETCH),userData,function(){ return; });
+      expect(cb).toHaveBeenCalledWith(createStoreRequest(Constants.ACTION_FETCH));
     });
     
     it('onRefresh storeRequest test', function(){
       var cb = jasmine.createSpy();
       var Server = Thoth.Server.create({ store: createFakeStore(cb) });  
 
-      Server.onRefresh(APIRequests.refreshRequest,StoreRequests.userData,function(){ return; });
-      expect(cb).toHaveBeenCalledWith(StoreRequests.createStoreRequest(Constants.ACTION_REFRESH));
+      Server.onRefresh(createAPIRequest(Constants.ACTION_REFRESH),userData,function(){ return; });
+      expect(cb).toHaveBeenCalledWith(createStoreRequest(Constants.ACTION_REFRESH));
     });
     
     it('onCreate storeRequest test', function(){
       var cb = jasmine.createSpy();
       var Server = Thoth.Server.create({ store: createFakeStore(cb) });  
 
-      Server.onCreate(APIRequests.createRequest,StoreRequests.userData,function(){ return; });
-      expect(cb).toHaveBeenCalledWith(StoreRequests.createStoreRequest(Constants.ACTION_CREATE));
+      Server.onCreate(createAPIRequest(Constants.ACTION_CREATE),userData,function(){ return; });
+      expect(cb).toHaveBeenCalledWith(createStoreRequest(Constants.ACTION_CREATE));
     });
 
     it('onUpdate storeRequest test', function(){
       var cb = jasmine.createSpy();
       var Server = Thoth.Server.create({ store: createFakeStore(cb) });  
 
-      Server.onUpdate(APIRequests.updateRequest,StoreRequests.userData,function(){ return; });
-      expect(cb).toHaveBeenCalledWith(StoreRequests.createStoreRequest(Constants.ACTION_UPDATE));
+      Server.onUpdate(createAPIRequest(Constants.ACTION_UPDATE),userData,function(){ return; });
+      expect(cb).toHaveBeenCalledWith(createStoreRequest(Constants.ACTION_UPDATE));
     });    
 
     it('onDelete storeRequest test', function(){
       var cb = jasmine.createSpy();
       var Server = Thoth.Server.create({ store: createFakeStore(cb) });  
-
-      Server.onDelete(APIRequests.deleteRequest,StoreRequests.userData,function(){ return; });
-      expect(cb).toHaveBeenCalledWith(StoreRequests.createStoreRequest(Constants.ACTION_DELETE));
+      var apiReq = createAPIRequest(Constants.ACTION_DELETE);
+      Thoth.log('onDelete storeReq test: apiReq' + Thoth.inspect(apiReq));
+      Server.onDelete(apiReq,userData,function(){ return; });
+      expect(cb).toHaveBeenCalledWith(createStoreRequest(Constants.ACTION_DELETE));
     });
 
   });
   
-  
+  describe("Testing Server behaviour with inconsistent requests", function(){
+    
+    var Server = Thoth.Server.create();
+    
+    it("onFetch should call the callback with an error", function() {
+      var cb = jasmine.createSpy();
+      Server.onFetch(createAPIRequest(Constants.ACTION_FETCH,YES),userData,cb);
+      var reply = Server._createErrorReply(Constants.ACTION_FETCH,Constants.ERROR_DATAINCONSISTENCY,StoreRequests.userData);
+      expect(cb).toHaveBeenCalledWith(reply);
+    });
+    
+    it("onRefresh should call the callback with an error", function() {
+      var cb = jasmine.createSpy();
+      Server.onRefresh(createAPIRequest(Constants.ACTION_REFRESH,YES),userData,cb);
+      var reply = Server._createErrorReply(Constants.ACTION_REFRESH,Constants.ERROR_DATAINCONSISTENCY,StoreRequests.userData);
+      expect(cb).toHaveBeenCalledWith(reply);
+    });
+    
+    it("onCreate should call the callback with an error", function() {
+      var cb = jasmine.createSpy();
+      Server.onCreate(createAPIRequest(Constants.ACTION_CREATE,YES),userData,cb);
+      var reply = Server._createErrorReply(Constants.ACTION_CREATE,Constants.ERROR_DATAINCONSISTENCY,StoreRequests.userData);
+      expect(cb).toHaveBeenCalledWith(reply);
+    }); 
+    
+    it("onUpdate should call the callback with an error", function() {
+      var cb = jasmine.createSpy();
+      Server.onUpdate(createAPIRequest(Constants.ACTION_UPDATE,YES),userData,cb);
+      var reply = Server._createErrorReply(Constants.ACTION_UPDATE,Constants.ERROR_DATAINCONSISTENCY,StoreRequests.userData);
+      expect(cb).toHaveBeenCalledWith(reply);
+    });
+
+    it("onDelete should call the callback with an error", function() {
+      var cb = jasmine.createSpy();
+      Server.onDelete(createAPIRequest(Constants.ACTION_DELETE,YES),userData,cb);
+      var reply = Server._createErrorReply(Constants.ACTION_DELETE,Constants.ERROR_DATAINCONSISTENCY,StoreRequests.userData);
+      expect(cb).toHaveBeenCalledWith(reply);
+    }); 
+      
+  });
   
   
 });
