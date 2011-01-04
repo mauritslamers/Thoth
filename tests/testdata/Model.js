@@ -41,6 +41,7 @@ exports.relations = {};
 exports.relations['firstname'] = junctionRecordOne;
 exports.relations['lastname'] = junctionRecordTwo;
 
+exports.consistentRecordDataWithRelations = { test1: '513', test2: 123, firstname: [ 2 ], lastname: [23] };
 
 exports.relationRecordOne = {
   bucket: 'firstname',
