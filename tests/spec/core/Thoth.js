@@ -1,6 +1,6 @@
-var Thoth = require('../../lib/Thoth').Thoth;
+var Thoth = require('../../../lib/Thoth').Thoth;
 
-describe('Thoth package test',function(){
+xdescribe('Thoth package test',function(){
   
   describe('Thoth Core modules check', function(){
 
@@ -50,7 +50,7 @@ describe('Thoth package test',function(){
     });
    
     it('Thoth junction relation mixin exists',function(){
-      var junct = require('../../lib/core/mixins/junctionrelations').RelationsByJunctionTable;
+      var junct = require('../../../lib/core/mixins/junctionrelations').RelationsByJunctionTable;
       expect(junct).not.toBeNull();
     });
     
@@ -67,25 +67,24 @@ describe('Thoth package test',function(){
   describe('Thoth Additional module check', function(){
     
     it('Thoth CouchDBstore exists',function(){
-      var cdb = require('../../lib/CouchDBStore').CouchDBStore;
+      var cdb = require('../../../lib/CouchDBStore').CouchDBStore;
       expect(cdb).not.toBeNull();
     });
     
     it('Thoth LDAPAuth exists', function(){
-      var ldap = require('../../lib/LDAPAuth').LDAPAuth;
+      var ldap = require('../../../lib/LDAPAuth').LDAPAuth;
       expect(ldap).not.toBeNull();
     });
     
     it('Thoth MySQLStore_mysqlClient exists',function(){
-      var mysql = require('../../lib/MySQLStore_mysqlClient').LDAPAuth;
+      var mysql = require('../../../lib/MySQLStore_mysqlClient').LDAPAuth;
       expect(mysql).not.toBeNull();
     });
     
     it('Thoth MySQLStore_node-mysql exists',function(){
-      var mysql = require('../../lib/MySQLStore_node-mysql').LDAPAuth;
+      var mysql = require('../../../lib/MySQLStore_node-mysql').LDAPAuth;
       expect(mysql).not.toBeNull();
-    }); 
-    
+    });  
   });
 
 });

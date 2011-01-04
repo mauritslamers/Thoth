@@ -1,10 +1,10 @@
-var Thoth = require('../../lib/Thoth').Thoth;
+var Thoth = require('../../../lib/Thoth').Thoth;
 
-var StoreRequests = require('../testdata/StoreRequests');
-var Constants = require('../../lib/core/Constants');
-var Model = require('../testdata/Model');
+var StoreRequests = require('../../testdata/StoreRequests');
+var Constants = require('../../../lib/core/Constants');
+var Model = require('../../testdata/Model');
 
-describe('MemStore tests', function(){
+xdescribe('MemStore tests', function(){
   
   var MemStore;
   
