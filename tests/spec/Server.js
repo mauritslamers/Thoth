@@ -203,7 +203,7 @@ describe('Thoth Server test', function(){
       
       var cb = jasmine.createSpy();
       Server.onFetch(createAPIRequest(Constants.ACTION_FETCH,YES),userData,cb);
-      var reply = Server._createErrorReply(Constants.ACTION_FETCH,Constants.ERROR_DATAINCONSISTENCY,APIRequests.returnData);
+      var reply = API.createErrorReply(Constants.ACTION_FETCH,Constants.ERROR_DATAINCONSISTENCY,APIRequests.returnData);
       expect(cb).toHaveBeenCalledWith(reply);
       expect(storeSpy).not.toHaveBeenCalled();
     });
@@ -215,7 +215,7 @@ describe('Thoth Server test', function(){
       var cb = jasmine.createSpy();
       var req = createAPIRequest(Constants.ACTION_REFRESH,YES);
       Server.onRefresh(req,userData,cb);
-      var reply = Server._createErrorReply(Constants.ACTION_REFRESH,Constants.ERROR_DATAINCONSISTENCY,APIRequests.returnData);
+      var reply = API.createErrorReply(Constants.ACTION_REFRESH,Constants.ERROR_DATAINCONSISTENCY,APIRequests.returnData);
       Thoth.log('request: ' + Thoth.inspect(req,YES,10));
       expect(cb).toHaveBeenCalledWith(reply);
       expect(storeSpy).not.toHaveBeenCalled();
@@ -227,7 +227,7 @@ describe('Thoth Server test', function(){
       
       var cb = jasmine.createSpy();
       Server.onCreate(createAPIRequest(Constants.ACTION_CREATE,YES),userData,cb);
-      var reply = Server._createErrorReply(Constants.ACTION_CREATE,Constants.ERROR_DATAINCONSISTENCY,APIRequests.returnData);
+      var reply = API.createErrorReply(Constants.ACTION_CREATE,Constants.ERROR_DATAINCONSISTENCY,APIRequests.returnData);
       expect(cb).toHaveBeenCalledWith(reply);
       expect(storeSpy).not.toHaveBeenCalled();
     }); 
@@ -238,7 +238,7 @@ describe('Thoth Server test', function(){
       
       var cb = jasmine.createSpy();
       Server.onUpdate(createAPIRequest(Constants.ACTION_UPDATE,YES),userData,cb);
-      var reply = Server._createErrorReply(Constants.ACTION_UPDATE,Constants.ERROR_DATAINCONSISTENCY,APIRequests.returnData);
+      var reply = API.createErrorReply(Constants.ACTION_UPDATE,Constants.ERROR_DATAINCONSISTENCY,APIRequests.returnData);
       expect(cb).toHaveBeenCalledWith(reply);
       expect(storeSpy).not.toHaveBeenCalled();
     });
@@ -249,7 +249,7 @@ describe('Thoth Server test', function(){
       
       var cb = jasmine.createSpy();
       Server.onDelete(createAPIRequest(Constants.ACTION_DELETE,YES),userData,cb);
-      var reply = Server._createErrorReply(Constants.ACTION_DELETE,Constants.ERROR_DATAINCONSISTENCY,APIRequests.returnData);
+      var reply = API.createErrorReply(Constants.ACTION_DELETE,Constants.ERROR_DATAINCONSISTENCY,APIRequests.returnData);
       expect(cb).toHaveBeenCalledWith(reply);
       expect(storeSpy).not.toHaveBeenCalled();
     }); 

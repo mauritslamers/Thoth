@@ -132,7 +132,7 @@ describe('MemStore tests', function(){
     });
   });
   
-  describe("MemStore refreshRecord data integrity tests", function() {
+  describe("MemStore refreshDBRecord data integrity tests", function() {
 
     var rec = Thoth.copy(Model.consistentModelData.record);
     rec.id = rec[StoreRequests.createStoreRequest(Constants.ACTION_CREATE).primaryKey];
@@ -141,7 +141,7 @@ describe('MemStore tests', function(){
     beforeEach(function(){
       MemStore = Thoth.MemStore.create();
       MemStore.start();
-      var storeReq = Thoth.copy(StoreRequests.createStoreRequest(Constants.ACTION_CREATE));
+      var storeReq = StoreRequests.createStoreRequest(Constants.ACTION_CREATE);
       MemStore.createDBRecord(storeReq,StoreRequests.userData);
     });
     
@@ -150,6 +150,52 @@ describe('MemStore tests', function(){
       MemStore.refreshDBRecord(StoreRequests.createStoreRequest(Constants.ACTION_REFRESH),StoreRequests.userData,cb);
       expect(cb).toHaveBeenCalledWith(rec);
     });
+    
+  });
+  
+  describe("MemStore updateDBRecord data integrity tests", function() {
+    var oldrec = Thoth.copy(Model.consistentModelData.record);
+    var MemStore;
+    
+    beforeEach(function() {
+      MemStore = Thoth.MemStore.create();
+      MemStore.start();
+      var req = StoreRequests.createStoreRequest(Constants.ACTION_CREATE);
+      MemStore.createDBRecord(req,StoreRequests.userData);
+    });
+    
+    it("updateRecord call should alter the data in memory", function() {
+      var newrec = Thoth.copy(Model.consistentModelData.record);
+      newrec.test415 = 'updated data';
+      var req = StoreRequests.createStoreRequest(Constants.ACTION_UPDATE);
+      req.recordData = newrec;
+      MemStore.updateDBRecord(req,StoreRequests.userData);
+      expect(MemStore._tables[req.bucket][req.key]).toEqual(newrec);
+    });
+  });
+  
+  describe("MemStore deleteDBRecord", function() {
+    
+    var MemStore, key;
+    
+    beforeEach(function() {
+      MemStore = Thoth.MemStore.create();
+      MemStore.start();
+      var req = StoreRequests.createStoreRequest(Constants.ACTION_CREATE);
+      MemStore.createDBRecord(req,StoreRequests.userData);
+    });
+    
+    it("record should exist after creation", function() {
+      var req = StoreRequests.createStoreRequest(Constants.ACTION_DELETE);
+      expect(MemStore._tables[req.bucket][req.key]).toBeDefined(); 
+    });
+    
+    it("record should not exist after deletion", function() {
+      var req = StoreRequests.createStoreRequest(Constants.ACTION_DELETE);
+      MemStore.deleteDBRecord(req, StoreRequests.userData);
+      expect(MemStore._tables[req.bucket][req.key]).not.toBeDefined();
+    });
+    
     
   });
 });
