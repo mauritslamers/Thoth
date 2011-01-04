@@ -8,7 +8,7 @@ describe('MemStore tests', function(){
   
   var MemStore;
   
-  describe('Pretest checks', function(){
+  describe('Memstore pretest checks', function(){
     it('Thoth exists and has loaded', function(){
       expect(Thoth).toBeDefined();
     });
@@ -25,10 +25,16 @@ describe('MemStore tests', function(){
       expect(Thoth.copy).toBeDefined();
     });
     
-    it("modeldata has record", function() {
-      expect(Model.modelData).toBeDefined();
-      expect(Model.modelData.record).toBeDefined();
+    it("Inconsistent model data exists", function() {
+      expect(Model.inconsistentModelData).toBeDefined();
+      expect(Model.inconsistentModelData.record).toBeDefined();
     });    
+
+    it("Consistent model data exists", function() {
+      expect(Model.consistentModelData).toBeDefined();
+      expect(Model.consistentModelData.record).toBeDefined();
+    });    
+
 
   });
   
@@ -90,19 +96,21 @@ describe('MemStore tests', function(){
     });
     
     it("creating a record should alter MemStore._tables", function() {
-      MemStore.createDBRecord(StoreRequests.createStoreRequest(Constants.ACTION_CREATE), StoreRequests.userData);
-      expect(MemStore._tables[Model.modelData.bucket]).toBeDefined();
+      var req = StoreRequests.createStoreRequest(Constants.ACTION_CREATE);
+      MemStore.createDBRecord(req, StoreRequests.userData);
+      expect(MemStore._tables[req.bucket]).toBeDefined();
     });
     
     it("creating a record should alter MemStore _counters", function() {
-      MemStore.createDBRecord(StoreRequests.createStoreRequest(Constants.ACTION_CREATE), StoreRequests.userData);
-      expect(MemStore._counters[Model.modelData.bucket]).toBeDefined();
+      var req = StoreRequests.createStoreRequest(Constants.ACTION_CREATE);      
+      MemStore.createDBRecord(req, StoreRequests.userData);
+      expect(MemStore._counters[req.bucket]).toBeDefined();
     });
     
     it("creating a record should call the callback with a key", function() {
       var cb = jasmine.createSpy();
       var storeReq = StoreRequests.createStoreRequest(Constants.ACTION_CREATE);
-      var rec = StoreRequests.createStoreRequest(Constants.ACTION_CREATE).recordData;
+      var rec = StoreRequests.createStoreRequest(Constants.ACTION_CREATE).recordData; // create new instance
       
       delete storeReq.recordData[storeReq.primaryKey];
       delete storeReq.recordData.id;
@@ -126,7 +134,7 @@ describe('MemStore tests', function(){
   
   describe("MemStore refreshRecord data integrity tests", function() {
 
-    var rec = Thoth.copy(Model.modelData.record);
+    var rec = Thoth.copy(Model.consistentModelData.record);
     rec.id = rec[StoreRequests.createStoreRequest(Constants.ACTION_CREATE).primaryKey];
     rec.key = rec.id;
               
@@ -142,5 +150,6 @@ describe('MemStore tests', function(){
       MemStore.refreshDBRecord(StoreRequests.createStoreRequest(Constants.ACTION_REFRESH),StoreRequests.userData,cb);
       expect(cb).toHaveBeenCalledWith(rec);
     });
+    
   });
 });

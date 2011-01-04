@@ -9,7 +9,7 @@ var userData = { user: 'testUser', sessionKey: 'test14' };
 exports.userData = userData;
 
 exports.createStoreRequest = function(action,inconsistencyFlag){
-  var model = inconsistencyFlag? modelData.inconsistentModelData: modelData.consistentModelData;
+  var model = inconsistencyFlag? Tools.copy(modelData.inconsistentModelData): Tools.copy(modelData.consistentModelData);
   var ret = {
     bucket: Tools.copy(model.bucket),
     primaryKey: Tools.copy(model.primaryKey),
@@ -25,7 +25,7 @@ exports.createStoreRequest = function(action,inconsistencyFlag){
       ret.parameters = Tools.copy(model.parameters);
       break;
     case Constants.ACTION_REFRESH: 
-      ret.key = model.key;
+      ret.key = Tools.copy(model.key);
       break;
     case Constants.ACTION_CREATE: 
       ret.key = Tools.copy(model.key);

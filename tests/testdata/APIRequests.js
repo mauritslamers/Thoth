@@ -9,7 +9,7 @@ var Tools = require('../../lib/core/Tools');
 exports.returnData = returnData;
 
 exports.createAPIRequest = function(action,inconsistencyFlag){
-  var model = inconsistencyFlag? modelData.inconsistentModelData: modelData.consistentModelData;
+  var model = inconsistencyFlag? Tools.copy(modelData.inconsistentModelData): Tools.copy(modelData.consistentModelData);
   var ret;
   var baseReq = {
     bucket: Tools.copy(model.bucket),
