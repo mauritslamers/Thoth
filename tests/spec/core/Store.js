@@ -13,8 +13,12 @@ var API = require('../../../lib/core/API');
 
 describe("Store tests", function() {
   
-  var createFakeStore = function(spy,relationSpy,shouldCallCallbacks){
+  var createFakeStore = function(spy,relationSpy,shouldCallCallbacks,noAutomaticRelations){
+    var automaticRelations = noAutomaticRelations? false: true;
+    
     var ret = Thoth.Store.create({
+      automaticRelations: automaticRelations,
+      
       createDBRecord: function(storeRequest,clientId,callback){
         spy(storeRequest);
         if(shouldCallCallbacks && callback) callback(storeRequest.recordData);
@@ -49,7 +53,7 @@ describe("Store tests", function() {
           callback(Model.relations[relation.bucket]);
         }
       },
-      destroyRelation: function(storeRequest,record,relation,clientId,callback){
+      destroyRelation: function(storeRequest,relation,clientId,callback){
         relationSpy(relation);
         if(shouldCallCallbacks && callback){
           callback(Model.relations[relation.bucket]);
@@ -86,6 +90,16 @@ describe("Store tests", function() {
       expect(cb).toHaveBeenCalledWith({recordResult : [Model.consistentModelData.record]});
     });
     
+    it("should't call fetchRelation when automatic relations is turned off", function() {
+      var spy = jasmine.createSpy();
+      var relspy = jasmine.createSpy();
+      var store = createFakeStore(spy,relspy,true,true);
+      var req = createStoreRequest(Constants.ACTION_FETCH);
+      store.fetch(req,StoreRequests.userData,function(){ return; });
+      expect(spy).toHaveBeenCalledWith(req);
+      expect(relspy).not.toHaveBeenCalled();
+    });
+    
     it("should call fetchRelation with the proper relation data when data is returned", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
@@ -107,8 +121,23 @@ describe("Store tests", function() {
       store.createRecord(req,StoreRequests.userData,function(){ return;});
       expect(spy).toHaveBeenCalledWith(req);
     });
+
+    it("shouldn't call createRelation and shouldn't include the relation properties when automaticRelations is off", function() {
+      var spy = jasmine.createSpy();
+      var relspy = jasmine.createSpy();
+      var cb = jasmine.createSpy();
+      var store = createFakeStore(spy,relspy,true,true);
+      var req = createStoreRequest(Constants.ACTION_CREATE);
+      //Thoth.log('createRecord test: ' + Thoth.inspect(req,false,10));
+      //var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
+      var rec = Thoth.copy(req.recordData);
+      store.createRecord(req,StoreRequests.userData,cb);
+      expect(spy).toHaveBeenCalledWith(req);     
+      expect(cb).toHaveBeenCalledWith(rec);
+      expect(relspy).not.toHaveBeenCalled();
+    });
     
-    it("should call the callback", function() {
+    it("should call the callback and include the relation properties", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
       var cb = jasmine.createSpy();
@@ -117,21 +146,155 @@ describe("Store tests", function() {
       //Thoth.log('createRecord test: ' + Thoth.inspect(req,false,10));
       var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
       store.createRecord(req,StoreRequests.userData,cb);
-      //expect(spy).toHaveBeenCalledWith(req);     
+      expect(spy).toHaveBeenCalledWith(req);     
       expect(cb).toHaveBeenCalledWith(rec);
+    });
+    
+    it("should call createRelation with the proper relation data", function() {
+      var spy = jasmine.createSpy();
+      var relspy = jasmine.createSpy();
+      var cb = jasmine.createSpy();
+      var store = createFakeStore(spy,relspy,true);
+      var req = createStoreRequest(Constants.ACTION_CREATE);
+      //Thoth.log('createRecord test: ' + Thoth.inspect(req,false,10));
+      var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
+      store.createRecord(req,StoreRequests.userData,cb);
+      expect(spy).toHaveBeenCalledWith(req);     
+      expect(cb).toHaveBeenCalledWith(rec); 
+      expect(relspy).toHaveBeenCalledWith(Model.consistentModelData.relations[0]);
+      expect(relspy).toHaveBeenCalledWith(Model.consistentModelData.relations[1]);           
     });
   });
   
   describe("updateRecord tests", function() {
+    it("should call updateDBRecord", function() {
+      var spy = jasmine.createSpy();
+      var relspy = jasmine.createSpy();
+      var store = createFakeStore(spy,relspy); // relspy needs to be in here to prevent error messages
+      var req = createStoreRequest(Constants.ACTION_UPDATE);
+      store.updateRecord(req,StoreRequests.userData,function(){ return;});
+      expect(spy).toHaveBeenCalledWith(req);
+    });
+
+    it("shouldn't call updateRelation and shouldn't include the relation properties when automaticRelations is off", function() {
+      var spy = jasmine.createSpy();
+      var relspy = jasmine.createSpy();
+      var cb = jasmine.createSpy();
+      var store = createFakeStore(spy,relspy,true,true);
+      var req = createStoreRequest(Constants.ACTION_UPDATE);
+      //Thoth.log('createRecord test: ' + Thoth.inspect(req,false,10));
+      //var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
+      var rec = Thoth.copy(req.recordData);
+      store.updateRecord(req,StoreRequests.userData,cb);
+      expect(spy).toHaveBeenCalledWith(req);     
+      expect(cb).toHaveBeenCalledWith(rec);
+      expect(relspy).not.toHaveBeenCalled();
+    });
     
+    it("should call the callback and include the relation properties", function() {
+      var spy = jasmine.createSpy();
+      var relspy = jasmine.createSpy();
+      var cb = jasmine.createSpy();
+      var store = createFakeStore(spy,relspy,true);
+      var req = createStoreRequest(Constants.ACTION_UPDATE);
+      //Thoth.log('createRecord test: ' + Thoth.inspect(req,false,10));
+      var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
+      store.updateRecord(req,StoreRequests.userData,cb);
+      expect(spy).toHaveBeenCalledWith(req);     
+      expect(cb).toHaveBeenCalledWith(rec);
+    });
+    
+    it("should call updateRelation with the proper relation data", function() {
+      var spy = jasmine.createSpy();
+      var relspy = jasmine.createSpy();
+      var cb = jasmine.createSpy();
+      var store = createFakeStore(spy,relspy,true);
+      var req = createStoreRequest(Constants.ACTION_UPDATE);
+      var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
+      store.updateRecord(req,StoreRequests.userData,cb);
+      expect(spy).toHaveBeenCalledWith(req);     
+      expect(cb).toHaveBeenCalledWith(rec); 
+      expect(relspy).toHaveBeenCalledWith(Model.consistentModelData.relations[0]);
+      expect(relspy).toHaveBeenCalledWith(Model.consistentModelData.relations[1]);           
+    });    
   });
   
   describe("refreshRecord tests", function() {
-    
+    it("should call refreshRecord", function() {
+      var spy = jasmine.createSpy();
+      var relspy = jasmine.createSpy();
+      var store = createFakeStore(spy,relspy); // relspy needs to be in here to prevent error messages
+      var req = createStoreRequest(Constants.ACTION_UPDATE);
+      store.refreshRecord(req,StoreRequests.userData,function(){ return;});
+      expect(spy).toHaveBeenCalledWith(req);
+    });
+
+    it("shouldn't call fetchRelation when automatic relations is off", function() {
+      var spy = jasmine.createSpy();
+      var relspy = jasmine.createSpy();
+      var cb = jasmine.createSpy();
+      var store = createFakeStore(spy,relspy,true,true);
+      var req = createStoreRequest(Constants.ACTION_UPDATE);
+      //Thoth.log('createRecord test: ' + Thoth.inspect(req,false,10));
+      //var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
+      var rec = { refreshResult: Thoth.copy(req.recordData)};
+      store.refreshRecord(req,StoreRequests.userData,cb);
+      expect(spy).toHaveBeenCalledWith(req);     
+      expect(cb).toHaveBeenCalledWith(rec);
+      expect(relspy).not.toHaveBeenCalled();
+    });
+        
+    it("should call fetchRelation with the proper relation data", function() {
+      var spy = jasmine.createSpy();
+      var relspy = jasmine.createSpy();
+      var cb = jasmine.createSpy();
+      var store = createFakeStore(spy,relspy,true);
+      var req = createStoreRequest(Constants.ACTION_UPDATE);
+      var rec = { refreshResult: Thoth.copy(req.recordData)};
+      store.refreshRecord(req,StoreRequests.userData,cb);
+      expect(spy).toHaveBeenCalledWith(req);     
+      expect(cb).toHaveBeenCalledWith(rec); 
+      expect(relspy).toHaveBeenCalledWith(Model.consistentModelData.relations[0]);
+      expect(relspy).toHaveBeenCalledWith(Model.consistentModelData.relations[1]);                
+    });   
   });
   
   describe("deleteRecord tests", function() {
-    
+    it("should call deleteRecord", function() {
+      var spy = jasmine.createSpy();
+      var relspy = jasmine.createSpy();
+      var store = createFakeStore(spy,relspy); // relspy needs to be in here to prevent error messages
+      var req = createStoreRequest(Constants.ACTION_UPDATE);
+      store.deleteRecord(req,StoreRequests.userData,function(){ return;});
+      expect(spy).toHaveBeenCalledWith(req);
+    });
+
+    it("shouldn't call destroyRelation when automatic relations is off", function() {
+      var spy = jasmine.createSpy();
+      var relspy = jasmine.createSpy();
+      var cb = jasmine.createSpy();
+      var store = createFakeStore(spy,relspy,true,true); // no callbacks with deleteRecord
+      var req = createStoreRequest(Constants.ACTION_UPDATE);
+      //Thoth.log('createRecord test: ' + Thoth.inspect(req,false,10));
+      //var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
+      store.deleteRecord(req,StoreRequests.userData,cb);
+      expect(spy).toHaveBeenCalledWith(req);     
+      expect(cb).toHaveBeenCalled();
+      expect(relspy).not.toHaveBeenCalled();
+    });
+        
+    it("should call destroyRelation with the proper relation data", function() {
+      var spy = jasmine.createSpy();
+      var relspy = jasmine.createSpy();
+      var cb = jasmine.createSpy();
+      var store = createFakeStore(spy,relspy,true);
+      var req = createStoreRequest(Constants.ACTION_UPDATE);
+      store.deleteRecord(req,StoreRequests.userData,cb);
+      expect(spy).toHaveBeenCalledWith(req);
+      expect(cb).toHaveBeenCalled(); 
+      expect(relspy).toHaveBeenCalledWith(Model.consistentModelData.relations[0]);
+      expect(relspy).toHaveBeenCalledWith(Model.consistentModelData.relations[1]);                
+    });    
   });
   
 });
