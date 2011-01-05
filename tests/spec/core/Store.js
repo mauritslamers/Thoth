@@ -13,12 +13,22 @@ var API = require('../../../lib/core/API');
 
 describe("Store tests", function() {
   
-  var createFakeStore = function(spy,relationSpy,shouldCallCallbacks,noAutomaticRelations){
-    var automaticRelations = noAutomaticRelations? false: true;
+  var createFakeStore = function(spy,relationSpy,opts){
+    var shouldCallCallbacks = opts? opts.shouldCallCallbacks: false;
+    /*
+    var options = {
+      shouldCallCallbacks: ,
+      noAutomaticRelations: ,
+      propertyBasedRetrieval: ,
+      filterBySCQuery: 
+    } */
     
+    var automaticRelations = (opts && opts.noAutomaticRelations)? false: true;
+
     var ret = Thoth.Store.create({
       automaticRelations: automaticRelations,
-      
+      propertyBasedRetrieval: opts? opts.propertyBasedRetrieval: null,
+      filterBySCQuery: (opts && ((opts.filterBySCQuery === false) || (opts.filterBySCQuery === true)))? opts.filterBySCQuery : YES,
       createDBRecord: function(storeRequest,clientId,callback){
         spy(storeRequest);
         if(shouldCallCallbacks && callback) callback(storeRequest.recordData);
@@ -82,7 +92,7 @@ describe("Store tests", function() {
     it("should call callback when data is returned", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
-      var store = createFakeStore(spy,relspy,true);
+      var store = createFakeStore(spy,relspy,{ shouldCallCallbacks: true });
       var cb = jasmine.createSpy();
       var req = createStoreRequest(Constants.ACTION_FETCH);
       store.fetch(req,StoreRequests.userData,cb);      
@@ -93,7 +103,7 @@ describe("Store tests", function() {
     it("should't call fetchRelation when automatic relations is turned off", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
-      var store = createFakeStore(spy,relspy,true,true);
+      var store = createFakeStore(spy,relspy,{ shouldCallCallbacks: true, noAutomaticRelations: true });
       var req = createStoreRequest(Constants.ACTION_FETCH);
       store.fetch(req,StoreRequests.userData,function(){ return; });
       expect(spy).toHaveBeenCalledWith(req);
@@ -103,7 +113,7 @@ describe("Store tests", function() {
     it("should call fetchRelation with the proper relation data when data is returned", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
-      var store = createFakeStore(spy,relspy,true);
+      var store = createFakeStore(spy,relspy,{ shouldCallCallbacks: true });
       var req = createStoreRequest(Constants.ACTION_FETCH);
       store.fetch(req,StoreRequests.userData,function(){ return; });
       expect(spy).toHaveBeenCalledWith(req);
@@ -126,7 +136,7 @@ describe("Store tests", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
       var cb = jasmine.createSpy();
-      var store = createFakeStore(spy,relspy,true,true);
+      var store = createFakeStore(spy,relspy,{ shouldCallCallbacks: true, noAutomaticRelations: true });
       var req = createStoreRequest(Constants.ACTION_CREATE);
       //Thoth.log('createRecord test: ' + Thoth.inspect(req,false,10));
       //var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
@@ -141,7 +151,7 @@ describe("Store tests", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
       var cb = jasmine.createSpy();
-      var store = createFakeStore(spy,relspy,true);
+      var store = createFakeStore(spy,relspy,{ shouldCallCallbacks: true });
       var req = createStoreRequest(Constants.ACTION_CREATE);
       //Thoth.log('createRecord test: ' + Thoth.inspect(req,false,10));
       var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
@@ -154,7 +164,7 @@ describe("Store tests", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
       var cb = jasmine.createSpy();
-      var store = createFakeStore(spy,relspy,true);
+      var store = createFakeStore(spy,relspy,{ shouldCallCallbacks: true });
       var req = createStoreRequest(Constants.ACTION_CREATE);
       //Thoth.log('createRecord test: ' + Thoth.inspect(req,false,10));
       var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
@@ -180,7 +190,7 @@ describe("Store tests", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
       var cb = jasmine.createSpy();
-      var store = createFakeStore(spy,relspy,true,true);
+      var store = createFakeStore(spy,relspy,{ shouldCallCallbacks: true, noAutomaticRelations: true });
       var req = createStoreRequest(Constants.ACTION_UPDATE);
       //Thoth.log('createRecord test: ' + Thoth.inspect(req,false,10));
       //var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
@@ -195,7 +205,7 @@ describe("Store tests", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
       var cb = jasmine.createSpy();
-      var store = createFakeStore(spy,relspy,true);
+      var store = createFakeStore(spy,relspy,{ shouldCallCallbacks: true });
       var req = createStoreRequest(Constants.ACTION_UPDATE);
       //Thoth.log('createRecord test: ' + Thoth.inspect(req,false,10));
       var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
@@ -208,7 +218,7 @@ describe("Store tests", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
       var cb = jasmine.createSpy();
-      var store = createFakeStore(spy,relspy,true);
+      var store = createFakeStore(spy,relspy,{ shouldCallCallbacks: true });
       var req = createStoreRequest(Constants.ACTION_UPDATE);
       var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
       store.updateRecord(req,StoreRequests.userData,cb);
@@ -224,7 +234,7 @@ describe("Store tests", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
       var store = createFakeStore(spy,relspy); // relspy needs to be in here to prevent error messages
-      var req = createStoreRequest(Constants.ACTION_UPDATE);
+      var req = createStoreRequest(Constants.ACTION_REFRESH);
       store.refreshRecord(req,StoreRequests.userData,function(){ return;});
       expect(spy).toHaveBeenCalledWith(req);
     });
@@ -233,11 +243,11 @@ describe("Store tests", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
       var cb = jasmine.createSpy();
-      var store = createFakeStore(spy,relspy,true,true);
-      var req = createStoreRequest(Constants.ACTION_UPDATE);
+      var store = createFakeStore(spy,relspy,{ shouldCallCallbacks: true, noAutomaticRelations: true });
+      var req = createStoreRequest(Constants.ACTION_REFRESH);
       //Thoth.log('createRecord test: ' + Thoth.inspect(req,false,10));
       //var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
-      var rec = { refreshResult: Thoth.copy(req.recordData)};
+      var rec = { refreshResult: Thoth.copy(Model.consistentModelData.record)};
       store.refreshRecord(req,StoreRequests.userData,cb);
       expect(spy).toHaveBeenCalledWith(req);     
       expect(cb).toHaveBeenCalledWith(rec);
@@ -248,9 +258,9 @@ describe("Store tests", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
       var cb = jasmine.createSpy();
-      var store = createFakeStore(spy,relspy,true);
-      var req = createStoreRequest(Constants.ACTION_UPDATE);
-      var rec = { refreshResult: Thoth.copy(req.recordData)};
+      var store = createFakeStore(spy,relspy,{ shouldCallCallbacks: true });
+      var req = createStoreRequest(Constants.ACTION_REFRESH);
+      var rec = { refreshResult: Thoth.copy(Model.consistentModelData.record)};
       store.refreshRecord(req,StoreRequests.userData,cb);
       expect(spy).toHaveBeenCalledWith(req);     
       expect(cb).toHaveBeenCalledWith(rec); 
@@ -264,7 +274,7 @@ describe("Store tests", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
       var store = createFakeStore(spy,relspy); // relspy needs to be in here to prevent error messages
-      var req = createStoreRequest(Constants.ACTION_UPDATE);
+      var req = createStoreRequest(Constants.ACTION_DELETE);
       store.deleteRecord(req,StoreRequests.userData,function(){ return;});
       expect(spy).toHaveBeenCalledWith(req);
     });
@@ -273,8 +283,8 @@ describe("Store tests", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
       var cb = jasmine.createSpy();
-      var store = createFakeStore(spy,relspy,true,true); // no callbacks with deleteRecord
-      var req = createStoreRequest(Constants.ACTION_UPDATE);
+      var store = createFakeStore(spy,relspy,{ shouldCallCallbacks: true, noAutomaticRelations: true }); 
+      var req = createStoreRequest(Constants.ACTION_DELETE);
       //Thoth.log('createRecord test: ' + Thoth.inspect(req,false,10));
       //var rec = Thoth.copy(Model.consistentRecordDataWithRelations);
       store.deleteRecord(req,StoreRequests.userData,cb);
@@ -287,14 +297,46 @@ describe("Store tests", function() {
       var spy = jasmine.createSpy();
       var relspy = jasmine.createSpy();
       var cb = jasmine.createSpy();
-      var store = createFakeStore(spy,relspy,true);
-      var req = createStoreRequest(Constants.ACTION_UPDATE);
+      var store = createFakeStore(spy,relspy,{ shouldCallCallbacks: true });
+      var req = createStoreRequest(Constants.ACTION_DELETE);
       store.deleteRecord(req,StoreRequests.userData,cb);
       expect(spy).toHaveBeenCalledWith(req);
       expect(cb).toHaveBeenCalled(); 
       expect(relspy).toHaveBeenCalledWith(Model.consistentModelData.relations[0]);
       expect(relspy).toHaveBeenCalledWith(Model.consistentModelData.relations[1]);                
     });    
+  });
+  
+  describe("property based retrieval tests", function() {
+    it("checks whether fetchDBRecord property filter works when SC.Query filtering is turned off", function() {
+      var spy = jasmine.createSpy();
+      var relspy = jasmine.createSpy();
+      var store = createFakeStore(spy,relspy,{ shouldCallCallbacks: true, noAutomaticRelations: true, propertyBasedRetrieval: true, filterBySCQuery: false });
+      var req = createStoreRequest(Constants.ACTION_FETCH);
+      req.properties.pop(); // remove the last item from  properties: [ { key: 'test1', type: 'String'}, { key: 'test2', type: 'Number'}],
+      var rec = Thoth.copy(Model.consistentModelData.record);
+      delete rec.test2;
+      var expectedresult = { recordResult: [rec]};
+      var cb = jasmine.createSpy();
+      store.fetch(req,StoreRequests.userData,cb); // fetch needs a callback
+      expect(spy).toHaveBeenCalledWith(req);
+      expect(cb).toHaveBeenCalledWith(expectedresult);
+    });
+    
+    it("checks whether fetchDBRecord property filter works when SC.Query filtering is turned on again (should return empty array)", function() {
+      var spy = jasmine.createSpy();
+      var relspy = jasmine.createSpy();
+      var store = createFakeStore(spy,relspy,{ shouldCallCallbacks: true, noAutomaticRelations: true, propertyBasedRetrieval: true, filterBySCQuery: true });
+      var req = createStoreRequest(Constants.ACTION_FETCH);
+      req.properties.pop(); // remove the last item from  properties: [ { key: 'test1', type: 'String'}, { key: 'test2', type: 'Number'}],
+      var expectedresult = { recordResult: []};
+      var cb = jasmine.createSpy();
+      store.fetch(req,StoreRequests.userData,cb); // fetch needs a callback
+      expect(spy).toHaveBeenCalledWith(req);
+      expect(cb).toHaveBeenCalledWith(expectedresult);
+    });
+    
+    
   });
   
 });

@@ -1,6 +1,6 @@
 var Thoth = require('../../../lib/Thoth').Thoth;
 
-xdescribe('Thoth package test',function(){
+describe('Thoth package test',function(){
   
   describe('Thoth Core modules check', function(){
 

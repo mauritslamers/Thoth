@@ -11,7 +11,7 @@ var userData = StoreRequests.userData;
 var Constants = require('../../../lib/core/Constants');
 var API = require('../../../lib/core/API');
 
-xdescribe('Thoth API and testdata tests', function(){
+describe('Thoth API and testdata tests', function(){
   
   describe("checking presence of API functions", function() {
     it("createAPIRequest should exist", function() {
@@ -84,7 +84,7 @@ xdescribe('Thoth API and testdata tests', function(){
 
 
 
-xdescribe('Thoth Server test', function(){
+describe('Thoth Server test', function(){
   
   var createFakeStore = function(spy){
     return { // a fake store to send the storeRequest to the callback

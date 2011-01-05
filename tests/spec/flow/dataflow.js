@@ -28,7 +28,7 @@ describe("Thoth data flow tests", function() {
       expect(Server.store._tables[req.createRecord.bucket][req.createRecord.key]).toEqual(rec);
     });
     
-    xit("a create request should make the proper relation data in the store", function() {
+    it("a create request should make the proper relation data in the store", function() {
       var Server = Thoth.Server.create({ port: 8059, store: Thoth.MemStore.create() });
       Server.start();
       
