@@ -23,7 +23,7 @@ var myServer = Thoth.Server.create({
    port: 8080,
    //store: Thoth.Store.create(), // don't use directly!
    //store: RiakStore.create(),
-   //store: Store.create({hostname:'', username:'', password: '', database: ''}),
+   //store: Store.create({hostname:'', user:'', password: '', database: ''}),
    authModule: Thoth.FileAuth.create({ fileName: './myUsers'}),
    sessionModule: Thoth.Session.create({ sessionName: 'ThothServer' }),
    policyModule: Thoth.Policies.create({ policyFile: './myPolicies'})
