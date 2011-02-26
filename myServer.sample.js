@@ -15,15 +15,15 @@ var Thoth = require('./lib/Thoth').Thoth;
 */
 
 // require the store you need here:
-var RiakStore = require('./lib/RiakStore').RiakStore;
-var MySQLStoreMySQLClient = require('./lib/MySQLStore_mysqlClient').MySQLStoreMySQLClient;
-var MySQLStoreNodeMySQL = require('./lib/MySQLStore_node-mysql').MySQLStoreNodeMySQL;
+//var Store = require('./lib/RiakStore').RiakStore;
+//var Store = require('./lib/MySQLStore_mysqlClient').MySQLStoreMySQLClient;
+//var Store = require('./lib/MySQLStore_node-mysql').MySQLStoreNodeMySQL;
 
 var myServer = Thoth.Server.create({
    port: 8080,
    //store: Thoth.Store.create(), // don't use directly!
    //store: RiakStore.create(),
-   //store: MySQLStoreMySQLClient.create({hostname:'', username:'', passwd: '', database: ''}),
+   //store: Store.create({hostname:'', username:'', password: '', database: ''}),
    authModule: Thoth.FileAuth.create({ fileName: './myUsers'}),
    sessionModule: Thoth.Session.create({ sessionName: 'ThothServer' }),
    policyModule: Thoth.Policies.create({ policyFile: './myPolicies'})
