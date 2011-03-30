@@ -36,7 +36,7 @@ exports.sample = ThothPolicyModel.create({
       This function is only called once, before the actual db request. 
       Accepted return value is either YES, NO or a filtered record.
    */
-   create: function(storeRequest,user,record,callback){
+   create: function(storeRequest,userData,record,callback){
       callback(this.defaultResponse);
    },
    
@@ -44,7 +44,7 @@ exports.sample = ThothPolicyModel.create({
       This function is only called once, before the actual db request
       Accepted return value is either YES, NO or a filtered record.
    */
-   update: function(storeRequest,user,record,callback){
+   update: function(storeRequest,userData,record,callback){
       callback(this.defaultResponse);
    },
    
@@ -54,7 +54,7 @@ exports.sample = ThothPolicyModel.create({
       Whether it is called after the db request depends on the return value of the first call.
       Accepted callback value is either YES, NO or a filtered record
    */
-   refresh: function(storeRequest,user,record,callback){
+   refresh: function(storeRequest,userData,record,callback){
       callback(this.defaultResponse);
    },
    
@@ -62,7 +62,7 @@ exports.sample = ThothPolicyModel.create({
       This function is only called once, before the actual db request
       Accepted return value is either YES or NO.
    */
-   destroy: function(storeRequest,user,record,callback){
+   destroy: function(storeRequest,userData,record,callback){
       callback(this.defaultResponse);
    },
    
@@ -70,7 +70,7 @@ exports.sample = ThothPolicyModel.create({
       This function can be used by the other functions above, but also needs to be
       available separately to be able to filter data.
    */
-   filter: function(storeRequest,user,record,callback){
+   filter: function(storeRequest,userData,record,callback){
       callback(record);
    }
 });
