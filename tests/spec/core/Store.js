@@ -22,8 +22,10 @@ describe("Store tests", function() {
       propertyBasedRetrieval: ,
       filterBySCQuery: 
     } */
-    
+
     var automaticRelations = (opts && opts.noAutomaticRelations)? false: true;
+
+    //sys.log('finding Thoth.Store: ' + sys.inspect(Thoth.Store));
 
     var ret = Thoth.Store.create({
       automaticRelations: automaticRelations,

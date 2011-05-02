@@ -4,7 +4,7 @@ var StoreRequests = require('../../testdata/StoreRequests');
 var Constants = require('../../../lib/core/Constants');
 var Model = require('../../testdata/Model');
 
-xdescribe('MemStore tests', function(){
+describe('MemStore tests', function(){
   
   var MemStore;
   
@@ -88,7 +88,7 @@ xdescribe('MemStore tests', function(){
     });    
   });
   
-  describe("MemStore create data consistency tests", function() {
+  xdescribe("MemStore create data consistency tests", function() {
     
     beforeEach(function(){
       MemStore = Thoth.MemStore.create();
@@ -132,7 +132,7 @@ xdescribe('MemStore tests', function(){
     });
   });
   
-  describe("MemStore refreshDBRecord data integrity tests", function() {
+  xdescribe("MemStore refreshDBRecord data integrity tests", function() {
 
     var rec = Thoth.copy(Model.consistentModelData.record);
     rec.id = rec[StoreRequests.createStoreRequest(Constants.ACTION_CREATE).primaryKey];
@@ -153,7 +153,7 @@ xdescribe('MemStore tests', function(){
     
   });
   
-  describe("MemStore updateDBRecord data integrity tests", function() {
+  xdescribe("MemStore updateDBRecord data integrity tests", function() {
     var oldrec = Thoth.copy(Model.consistentModelData.record);
     var MemStore;
     
@@ -174,7 +174,7 @@ xdescribe('MemStore tests', function(){
     });
   });
   
-  describe("MemStore deleteDBRecord", function() {
+  xdescribe("MemStore deleteDBRecord", function() {
     
     var MemStore, key;
     
