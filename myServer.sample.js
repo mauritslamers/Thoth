@@ -31,7 +31,7 @@ var myServer = Thoth.Server.create({
 	//store: RiakStore.create(),
 	//store: Store.create({hostname:'', user:'', password: '', database: ''}),
 	authModule: Thoth.FileAuth.create({ fileName: './myUsers'}),
-	policyModule: Thoth.Policies.create({ policyFile: './myPolicies', filterRecords: true })	
+	policyModule: Thoth.Policies.create({ policyFile: './myPolicies', filterRecords: true }),
 	sessionModule: Thoth.Session.create({ sessionName: 'ThothServer' })
 });
 
