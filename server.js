@@ -29,11 +29,11 @@ var Store = require('./lib/MySQLStore_node-mysql').MySQLStoreNodeMySQL;
 
 var myServer = Thoth.Server.create({
 	debug: true,
-	port: 8080,
+	port: 80,
 	//store: Store.create({ filename: './data'}),
 	// not working?
 	//store: Store.create({ host: 'burowittenburg.cloudant.com', port: '80', user: 'burowittenburg', pass: 'jv5HYvgH14CX', database: 'wittenburg'}),	
-	store: Store.create({ hostname: 'burowittenburg.nl', user: 'wittenburg_sc', password: 'Gmku5H6M', database: 'wittenburg_sc', primaryKey: 'id'}),	
+	store: Store.create({ hostname: 'fungi.no.de', user: 'bw', password: 'bw-pass', database: 'wittenburg_sc', primaryKey: 'id'}),	
 	authModule: Thoth.FileAuth.create({ fileName: './myUsers'}),
 //	policyModule: Thoth.Policies.create({ policyFile: './myPolicies', filterRecords: true }),
 	sessionModule: Thoth.Session.create({ sessionName: 'ThothServer' })
