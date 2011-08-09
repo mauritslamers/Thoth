@@ -33,7 +33,7 @@ var myServer = Thoth.Server.create({
 	//store: Store.create({ filename: './data'}),
 	// not working?
 	//store: Store.create({ host: 'burowittenburg.cloudant.com', port: '80', user: 'burowittenburg', pass: 'jv5HYvgH14CX', database: 'wittenburg'}),	
-	store: Store.create({ hostname: 'fungi.no.de', user: 'bw', password: 'bw-pass', database: 'wittenburg_sc', primaryKey: 'id'}),	
+	store: Store.create({ hostname: 'localhost', user: 'bw', password: 'bw-pass', database: 'wittenburg_sc', primaryKey: 'id'}),	
 	authModule: Thoth.FileAuth.create({ fileName: './myUsers'}),
 //	policyModule: Thoth.Policies.create({ policyFile: './myPolicies', filterRecords: true }),
 	sessionModule: Thoth.Session.create({ sessionName: 'ThothServer' })
