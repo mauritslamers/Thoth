@@ -29,7 +29,7 @@ var Store = require('./lib/MySQLStore_node-mysql').MySQLStoreNodeMySQL;
 
 var myServer = Thoth.Server.create({
 	debug: true,
-	port: 80,
+	port: 8080,
 	//store: Store.create({ filename: './data'}),
 	// not working?
 	//store: Store.create({ host: 'burowittenburg.cloudant.com', port: '80', user: 'burowittenburg', pass: 'jv5HYvgH14CX', database: 'wittenburg'}),	
