@@ -49,7 +49,10 @@ Installation:
   git submodule update --init 
   
   in the Thoth folder after cloning or forking.
-
+  
+  You will also need npm and install a few modules, depending on what you use:
+  - socket.io (required)
+  - node-mysql
 
 Many thanks to juan77 and especially to Jeff Pittman (geojeff) for their continuing support and willingness to test and catch bugs!
 
