@@ -1,1 +1,4 @@
-*.DS_Store*
+*DS_Store*
+tmp/*
+node_modules/*
+node_debug/*
