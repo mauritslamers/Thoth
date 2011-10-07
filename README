@@ -1,12 +1,21 @@
 Thoth
 
-Thoth is a Node-based communications hub for multi-user SproutCore applications, serving as a unified database interface and automating distribution of data changes
+Thoth is a Node.js-based communications hub for multi-user SproutCore applications, serving as a unified database interface and automating distribution of data changes
 
 It simplifies the specification and maintenance of data models by only requiring them in your SproutCore application when used with a nonSQL database.
 
+October 7th 2011:
+
+As of traffic issues others and I encountered lately between Thoth and ThothSC, I decided to no longer
+use my custom traffic specifications, but to replace them with socket.io.
+This means the master branch no longer contains the custom specifications but only the socket.io client.
+I created a separate branch to keep the old version around (last-non-socket.io).
+I will try to update it with bug fixes, but the main development will be on the master branch.
+
+===
+
 Features: 
- - Websocket support
- - Long polling support (might be a bit buggy still)
+ - socket.io based communication
  - Session support
  - Policy (role-based permissions) and record filtering support
  - Authentication support (async)
@@ -19,27 +28,25 @@ You can use Thoth in your SproutCore application by using the SC framework, whic
 Status: Between alpha and beta status...  
 	
 	What works: 
-		- WebSocket connections in a WebSocket enabled browser
-		- Long Polling XHR
+    - all socket.io based traffic (currently on v0.8.4)
 		- Authentication from user data in a file
 		- Session support
 		- Automatic distribution of changes based on users previous requests
 		- support for sending queries to the server
 		- support for custom storage modules, such as fixtures
-		- SC.DataSource client code for both XHR long polling and Websocket (see my Thoth-SC project)
-		- MySQL support (you need the mysql client and bindings from my node-mysql-mysqlclient fork)
+		- SC.DataSource client code (see my Thoth-SC project)
+		- MySQL support using mysql-client (you need the mysql client and bindings from my node-mysql-mysqlclient fork)
+		- MySQL support using node-mysql 
 
    What should work properly soon, but is already included (so feel free to help getting it to work!):
       - LDAP authentication
       - CouchDB adapter
-      - MySQL support based on felixge's node-mysql
       - Riak adapter (had to switch deps on this one)
 	
 	What still needs to be implemented:
 		- support for more Riak features in requests to the server
 		- support for CouchDB automatic view creation based on Sproutcore models
 		- additional authentication modules
-		- adding automatic table creation for MySQL DBs
 		- binary data support
 
 Installation:
