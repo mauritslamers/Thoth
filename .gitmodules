@@ -13,6 +13,3 @@
 [submodule "lib/node-ldap"]
 	path = lib/node-ldap
 	url = git://github.com/jeremycx/node-LDAP.git
-[submodule "tests/jasmine-node"]
-	path = tests/jasmine-node
-	url = git://github.com/mauritslamers/jasmine-node.git
