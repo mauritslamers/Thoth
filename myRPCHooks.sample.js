@@ -18,7 +18,7 @@ So your function has to return the filePath where the server can find the file.
 
 var mimeTypeJSON = 'application/json';
 
-var sys = require('sys');
+var sys = require('./lib/core/Tools').sys;
 
 exports.myFunc = function(params,callback){
     callback({ mimeType: mimeTypeJSON, responseObject: {message: "This is a nice answer"} });
