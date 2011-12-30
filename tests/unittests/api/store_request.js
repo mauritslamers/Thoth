@@ -20,7 +20,7 @@ testStoreRequest.addBatch({
   "a store Request should": {
     topic: function(){ return API.StoreRequest; },
     
-    'contain an isConsistent computed property': function(t){
+    'contains an isConsistent computed property': function(t){
       assert.isFunction(t.prototype.isConsistent);
       assert.isTrue(t.prototype.isConsistent.isProperty);
     },
@@ -42,7 +42,12 @@ testStoreRequest.addBatch({
       assert.doesNotThrow(function(){
         t.create({ requestType: C.ACTION_FETCH });
       },Error);  
-    }
+    },
+    
+    "'s from function should return undefined when inited called with inconsistent data": function(t){
+      var ar = base.Thoth.API.APIRequest.create(inconsistentData, { requestType: C.ACTION_CREATE });
+      assert.isUndefined(t.from(ar));
+    }    
   },
   
   'a fetch store request without data': {
