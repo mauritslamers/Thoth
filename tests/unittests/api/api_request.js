@@ -76,7 +76,7 @@ testAPIRequest.addBatch({
       assert.isUndefined(t.from());
     },
     
-    'with inconistent data should return undefined': function(t){
+    'with inconsistent data should return undefined': function(t){
       assert.isUndefined(t.from(inconsistentData, { source: C.SOURCE_REST, requestType: C.ACTION_CREATE }));
     }
   } 
