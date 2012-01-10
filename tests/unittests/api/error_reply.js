@@ -22,7 +22,7 @@ test.addBatch({
     topic: function(){ return API.ErrorReply.from(base.Thoth.Constants.ERROR_DENIEDONPOLICY, retData ); },
     
     'should result in a non-empty error message': function(t){
-      assert.notEmpty(t.get('message'));
+      assert.isTrue(t.get('message').length !== 0);
     },
     
     'should give back the correct returnData': function(t){
