@@ -19,14 +19,28 @@ test.addBatch({
   
   'creating an error reply using the from function': {
     
-    topic: function(){ return API.ErrorReply.from(base.Thoth.Constants.ERROR_DENIEDONPOLICY, retData ); },
+    topic: function(){ 
+      var errors = base.Thoth.Constants.ERRORS;
+      assert.isArray(errors);
+      var ret = errors.map(function(er){
+        return API.ErrorReply.from(er,retData);
+      });
+      //return API.ErrorReply.from(base.Thoth.Constants.ERROR_DENIEDONPOLICY, retData ); },
+      return ret;
+    },
     
     'should result in a non-empty error message': function(t){
-      assert.isTrue(t.get('message').length !== 0);
+      t.forEach(function(e){
+        assert.isTrue(e.get('message').length !== 0);
+      });
+     // assert.isTrue(t.get('message').length !== 0);
     },
     
     'should give back the correct returnData': function(t){
-      assert.strictEqual(t.get('returnData'), retData);
+      t.forEach(function(e){
+        assert.strictEqual(e.get('returnData'), retData);
+      });
+     // assert.strictEqual(t.get('returnData'), retData);
     }
     
   }
