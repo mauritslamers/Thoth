@@ -1,8 +1,21 @@
 Thoth
 
-Thoth is a Node.js-based communications hub for multi-user SproutCore applications, serving as a unified database interface and automating distribution of data changes
+Thoth is a Node.js-based communications hub for multi-user SproutCore applications, 
+serving as a unified database interface and automating distribution of data changes.
+Thoth simplifies the problem of having to define models on multiple places by taking the 
+model graph (a set of properties, relations and computed properties) from the client 
+application, and retrieve and process records based on that information and the local
+configuration, preventing you from having to define models in Thoth. 
+This means that if you use a noSQL database, you don't have to define server side models 
+at all.
 
-It simplifies the specification and maintenance of data models by only requiring them in your SproutCore application when used with a nonSQL database.
+Januari 2011:
+While writing tests for Thoth I became more and more aware of the lack of consistency control 
+for both the hashes used for the API side as well as the internal messages.
+To solve this, I decided to implement json scheme checking for both the API as well as the internal
+data hashes. As a side effect the API also changes a bit, as the names of the events will be taken
+from the API.js file itself. Relation replies now also have dedicated events, so if you don't use
+ThothSC, make sure you update your clients!
 
 October 7th 2011:
 
