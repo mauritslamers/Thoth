@@ -1,6 +1,6 @@
 var base = require('../../testbase');
 var assert = base.assert;
-var test = base.vows.describe("API FetchRelationResult tests");
+var test = base.vows.describe("API RelationResult tests");
 var API = base.Thoth.API;
 var sys = require('util');
 
@@ -9,9 +9,9 @@ var retData = { test2: 3 };
 
 test.addBatch({  
   
-  'fetchRelationResult': {
+  'RelationResult': {
     
-    topic: function(){ return API.FetchRelationResult; },
+    topic: function(){ return API.RelationResult; },
     
     'should have a from function': function(t){
       assert.isFunction(t.from);
@@ -19,10 +19,10 @@ test.addBatch({
     
   },
   
-  'creating a fetchRelationResult object using .from': {
+  'creating a RelationResult object using .from': {
     
     topic: function(){
-      return API.FetchRelationResult.from(reldata, retData);
+      return API.RelationResult.from(reldata, retData);
     },
     
     'should give back the relation data in an array': function(t){
