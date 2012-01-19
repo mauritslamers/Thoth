@@ -10,6 +10,16 @@ var inconsistentData = {
   key: '513',
   primaryKey: 'test1',
   properties: [ { key: 'test1', type: 'String'}, { key: 'test2', type: 'Number'}],
+  relations: [{ propertyName: 'firstname', type: 'toMany', bucket: 'firstname', isMaster: true, primaryKey: 'id' },
+              { propertyName: 'lastname', type: 'toOne', bucket: 'lastname', isMaster: true, primaryKey: 'id' }],
+  record: { test1: 'test1', test2: 123 }
+};
+
+var invalidData = {
+  bucket: 'test',
+  key: '513',
+  primaryKey: 'test1',
+  properties: [ { key: 'test1', type: 'String'}, { key: 'test2', type: 'Number'}],
   relations: [{ propertyName: 'firstname', type: 'toMany', bucket: 'firstname'},
               { propertyName: 'lastname', type: 'toOne', bucket: 'lastname'}],
   record: { test1: 'test1', test2: 123 }
@@ -29,7 +39,7 @@ testAPIRequest.addBatch({
       assert.throws(function(){ t.create(); }, Error);
     },
     
-    'throw an error when inited with a request type but without a valid schema': function(t){
+    'throw an error when inited with a request type without a valid schema': function(t){
       assert.throws(function(){ t.create({ requestType: 'stupidrequest'}); }, Error);
     }, 
     
@@ -45,20 +55,8 @@ testAPIRequest.addBatch({
     
   },
   
-  'a fetch store request without data': {
-    topic: API.StoreRequest.create({ requestType: C.ACTION_FETCH, source: C.SOURCE_REST }),
-    
-    'should always be consistent': function(t){
-      assert.isTrue(t.get('isConsistent'));
-    },
-    
-    'should return undefined for recordData': function(t){
-      assert.isUndefined(t.get('recordData'));
-    }
-  },
-  
   'a create api request with inconsistent data': {
-    topic: API.APIRequest.create(inconsistentData,{requestType: C.ACTION_CREATE, source: C.SOURCE_REST }),
+    topic: API.APIRequest.create(inconsistentData, { requestType: C.ACTION_CREATE, source: C.SOURCE_REST }),
     
     'should be inconsistent': function(t){
       assert.isFalse(t.get('isConsistent'));
@@ -76,8 +74,13 @@ testAPIRequest.addBatch({
       assert.isUndefined(t.from());
     },
     
-    'with inconsistent data should return undefined': function(t){
-      assert.isUndefined(t.from(inconsistentData, { source: C.SOURCE_REST, requestType: C.ACTION_CREATE }));
+    'with inconsistent data should return false for consistency check': function(t){
+      assert.isFalse(t.from(inconsistentData, C.SOURCE_REST, C.ACTION_CREATE).get('isConsistent'));
+    },
+
+    // with the debug setting on, this will list the errors, so that is to be expected
+    'with a request failing the schema should return undefined': function(t){
+      assert.isUndefined(t.from(invalidData, C.SOURCE_REST, C.ACTION_CREATE));
     }
   } 
   

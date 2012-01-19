@@ -17,7 +17,7 @@ var inconsistentData = {
 
 testStoreRequest.addBatch({
   
-  "a store Request should": {
+  "a store Request": {
     topic: function(){ return API.StoreRequest; },
     
     'contains an isConsistent computed property': function(t){
@@ -44,8 +44,8 @@ testStoreRequest.addBatch({
       },Error);  
     },
     
-    "'s from function should return undefined when inited called with inconsistent data": function(t){
-      var ar = base.Thoth.API.APIRequest.create(inconsistentData, { requestType: C.ACTION_CREATE });
+    "'s from function should return undefined when inited with inconsistent data": function(t){
+      var ar = API.StoreRequest.create(inconsistentData, { requestType: C.ACTION_CREATE, source: C.SOURCE_REST });
       assert.isUndefined(t.from(ar));
     }    
   },
@@ -76,8 +76,45 @@ testStoreRequest.addBatch({
     'should still return the original json': function(t){
       assert.deepEqual(t.get('json'),inconsistentData);
     }
-  }
+  },
+  
+  'a refresh store request with inconsistent data': {
+    topic: function(){
+      return API.APIRequest.create(inconsistentData,{ requestType: C.ACTION_REFRESH, source: C.SOURCE_REST });
+    },
+    
+    'should be an object': function(t){   
+      assert.isObject(API.StoreRequest.from(t));
+    },
+    
+    'should return true from isConsistent': function(t){
+      assert.isTrue(t.get('isConsistent'));
+    }
+  },
+  
+  'a delete store request with inconsistent data': {
+    topic: function(){
+      return API.APIRequest.create(inconsistentData,{ requestType: C.ACTION_DELETE, source: C.SOURCE_REST });
+    }, 
+    
+    'should be undefined': function(t){
+      assert.isUndefined(API.StoreRequest.from(t));
+    }
+  }                                 
+  
   
 });                                                                                                          
+//                                                                        
+// 'a fetch store request without data': {
+//    topic: API.StoreRequest.create({ requestType: C.ACTION_FETCH, source: C.SOURCE_REST }),
+//    
+//    'should always be consistent': function(t){
+//      assert.isTrue(t.get('isConsistent'));
+//    },
+//    
+//    'should return undefined for recordData': function(t){
+//      assert.isUndefined(t.get('recordData'));
+//    }
+//  },
 
 testStoreRequest.run();
