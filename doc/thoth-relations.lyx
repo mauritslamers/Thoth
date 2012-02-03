@@ -257,6 +257,16 @@ If this flag is set, the Store class will try to call a few functions in
 \begin_layout Description
 fetchRelation(storeRequest,records,relation,callback) This function is called
  to retrieve a relation for a set of records.
+ If the relation should not be retrieved at all, this function immediately
+ calls the callback with a 
+\begin_inset Quotes eld
+\end_inset
+
+should_not_handle
+\begin_inset Quotes erd
+\end_inset
+
+ error.
  
 \end_layout
 

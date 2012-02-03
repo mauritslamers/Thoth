@@ -1,8 +1,12 @@
 var testbase = require('../../testbase');
 var Thoth = testbase.Thoth;
 
+/*
+  WARNING: THIS DATA IS HARDCODED IN THE TESTS, SO IF YOU CHANGE IT, CHANGE THE TESTS TOO!!!
+*/
+
 var baseObj = {
-  bucket: 'candidate',
+  bucket: 'student',
   primaryKey: 'id',
   returnData: {
     requestCacheKey: 'somekey'
