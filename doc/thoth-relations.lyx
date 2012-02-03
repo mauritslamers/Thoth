@@ -1,0 +1,548 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\begin_preamble
+\usepackage{listings}
+
+\lstset{ basicstyle=\ttfamily \small,language= }
+\end_preamble
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman times
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry true
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 2cm
+\topmargin 2cm
+\rightmargin 2cm
+\bottommargin 2cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Thoth relations
+\end_layout
+
+\begin_layout Abstract
+This document describes the relations API for Thoth and the actions Thoth
+ and ThothSC expect to be taken.
+ By default Thoth will ignore the relation data, but there is a Relations
+ API which allows you to handle these relations separately.
+ A Junction relations mixin is available which shows how the specific settings
+ should be applied.
+\end_layout
+
+\begin_layout Section
+API 
+\end_layout
+
+\begin_layout Standard
+The relation data JSON schema:
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{lstlisting}
+\end_layout
+
+\begin_layout Plain Layout
+
+"type":{"type":"string","required":true,"enum":["toOne","toMany"]},
+\end_layout
+
+\begin_layout Plain Layout
+
+"oppositeType": {"type":"string", "enum":["toOne","toMany"]},
+\end_layout
+
+\begin_layout Plain Layout
+
+"isNested": {"type":["undefined","boolean"],"required":false},
+\end_layout
+
+\begin_layout Plain Layout
+
+"isChildRecord": {"type":"boolean","required":false},
+\end_layout
+
+\begin_layout Plain Layout
+
+"isDirectRelation": {"type":"boolean","required":false},
+\end_layout
+
+\begin_layout Plain Layout
+
+"isMaster": {"type":"boolean","required":true},
+\end_layout
+
+\begin_layout Plain Layout
+
+"orderBy": {"type":["undefined","string"],"required": false},
+\end_layout
+
+\begin_layout Plain Layout
+
+"bucket": {"type":"string","required":true},
+\end_layout
+
+\begin_layout Plain Layout
+
+"primaryKey": {"type":"string","required":true},
+\end_layout
+
+\begin_layout Plain Layout
+
+"propertyName": {"type":"string","required":true},
+\end_layout
+
+\begin_layout Plain Layout
+
+"propertyKey": {"type": ["string","null","undefined"],"required": false}
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{lstlisting}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Description
+\end_layout
+
+\begin_layout Description
+type type is the relation type of the current model to the other side: toOne
+ or toMany
+\end_layout
+
+\begin_layout Description
+oppositeType oppositeType is the relation type of the other side of the
+ relation to the current model: toOne or toMany.
+ If both type and oppositeType are defined, the type of the relation itself
+ is [oppositeType]-[type].
+\end_layout
+
+\begin_layout Description
+isNested isNested is a flag telling that the relation is stored on the record
+ data itself, and that it should not be touched.
+\end_layout
+
+\begin_layout Description
+isChildRecord isChildRecord is a flag, telling that the relation should
+ be given back as a nested object in the record hash
+\end_layout
+
+\begin_layout Description
+isDirectRelation isDirectRelation is a flag telling that the relation is
+ not going through a junction table, but is part of the record of either
+ this side (isMaster: true) or the other side (isMaster: false) of the relation.
+\end_layout
+
+\begin_layout Description
+isMaster isMaster is a flag telling that this side of the relation is allowed
+ to make changes to the relation.
+\end_layout
+
+\begin_layout Description
+orderBy orderBy is a string, containing a property name and an order.
+ If defined, the relation data should be given back in the given order,
+ whether the data itself is on the record hash (isChildRecord: true) or
+ only primary key values are given back.
+ This can be an expensive operation.
+\end_layout
+
+\begin_layout Description
+bucket the bucket/document/table/resource containing the data of the target
+ of this relation 
+\end_layout
+
+\begin_layout Description
+primaryKey the primaryKey key on the relations target record
+\end_layout
+
+\begin_layout Description
+propertyName the propertyName of this relation on the record for which this
+ relation is requested
+\end_layout
+
+\begin_layout Description
+propertyKey In case the propertyName in the SproutCore application is different
+ from the actual property in the record hash: what is the propertyKey on
+ which the data for this property resides.
+\end_layout
+
+\begin_layout Section
+The Relations API
+\end_layout
+
+\begin_layout Standard
+By default Thoth and ThothSC will assume that the relations will be handled
+ in the standard *DBRecords function implementations.
+ You can however choose to enable the Relations API by setting the 
+\emph on
+automaticRelations 
+\emph default
+flag to true.
+ 
+\end_layout
+
+\begin_layout Standard
+If this flag is set, the Store class will try to call a few functions in
+ order to handle the relation data.
+ If these functions are not found it will give a console warning.
+\end_layout
+
+\begin_layout Description
+fetchRelation(storeRequest,records,relation,callback) This function is called
+ to retrieve a relation for a set of records.
+ 
+\end_layout
+
+\begin_layout Description
+createRelation(storeRequest,record,relation,clientId,callback) This function
+ is called to create a new relation
+\end_layout
+
+\begin_layout Description
+updateRelation(storeRequest,record,relation,clientId,callback) This function
+ is called to update an existing relation
+\end_layout
+
+\begin_layout Description
+destroyRelation(storeRequest,relation,clientId,callback) This function is
+ called to destroy an existing relation
+\end_layout
+
+\begin_layout Standard
+You can implement these functions in order to separately handle the relations.
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+The argument lists of these functions will probably soon lose the clientId
+ parameter, as this is part of the new scified storeRequest object now.
+\end_layout
+
+\end_inset
+
+ 
+\begin_inset Newline newline
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+By default the relations will be sent back to the client in separate return
+ messages.
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+ThothSC will take care of a proper reintegration with the record(s) if needed
+\end_layout
+
+\end_inset
+
+If you do not want this, you can set the combinedReturnCalls setting on
+ the model.
+ Thoth will then wait until all relations callbacks have been called before
+ integrating the data and sending it to the client.
+\end_layout
+
+\begin_layout Section
+Using the junctionrelations mixin
+\end_layout
+
+\begin_layout Standard
+A junction relations mixin is available showing how a Relations API implementati
+on should handle the given configuration.
+ This junction relations mixin is probably the easiest to apply on top of
+ a store for a relational database, such as MySQL.
+\end_layout
+
+\begin_layout Subsection
+Basic workings
+\end_layout
+
+\begin_layout Standard
+The junction relations mixin takes the relation data and translates it to
+ database calls using the *DBRecords function implementations of your custom
+ store.
+ The basic assumption is that you use junction tables for every relation
+ and every relation type.
+ This behavior can be changed using the model settings in your Sproutcore
+ applications.
+ While the exact workings of those settings can differ between different
+ types of actions, the following is true for all actions:
+\end_layout
+
+\begin_layout Description
+isNested If you define isNested: true on the model, Thoth will completely
+ ignore the relation.
+ It will assume the relation data is on the main record and will not touch
+ it in any way
+\end_layout
+
+\begin_layout Description
+isMaster If this setting is false, Thoth will not change the record(s) or
+ relations.
+\end_layout
+
+\begin_layout Description
+orderBy If you define an orderBy string
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+consisting of string containing a property name and ASC or DESC for sort
+ order
+\end_layout
+
+\end_inset
+
+, Thoth will sort the relation records based on the property name.
+ If isChildRecord is true, it will sort the records and add them, otherwise
+ it will give the sorted ids.
+\end_layout
+
+\begin_layout Description
+isDirectRelation If this flag is set to true, Thoth will not look up or
+ change the relation using a junction table but will get its data from the
+ opposite record source, depending on where the relation data is stored:
+ when isMaster is false, Thoth will try to get the opposite records to get
+ the relation data.
+ Thoth uses the same naming principle as for the junction tables (see the
+ junctionKeyName function definition below).
+\end_layout
+
+\begin_layout Description
+type For all relations the actions performed are the same, independent of
+ the actual type of the relation.
+\end_layout
+
+\begin_layout Standard
+In addition you can apply two overrides on your store which will alter the
+ behavior of the junction table mixin.
+\end_layout
+
+\begin_layout Description
+junctionTableName(sideOne,sideTwo) This function generates the junction
+ table name.
+ The default returns a string with the values of sideOne and sideTwo alphabetica
+lly sorted and joined with an underscore.
+ junctionTableName('student','exam') will return 'exam_student'.
+\end_layout
+
+\begin_layout Description
+junctionKeyName(modelname,modelPrimaryKey,isToMany) This function generates
+ the field names of junction tables.
+ The default returns a string with the values of modelname and modelPrimaryKey
+ joined by an underscore.
+ If no modelPrimaryKey is given, the default primaryKey setting on the store
+ is used, which is 'id' by default.
+ The isToMany flag can be used to make a plural key name.
+ The default return value for junctionKeyName('student','id',true) is 'student_i
+ds'.
+\end_layout
+
+\begin_layout Standard
+WARNING: The writer of the sproutcore application is responsible for having
+ sensible settings on the models.
+ Thoth will not be able to keep everything synchronized in all situations.
+ If you for example define a many-to-many in which both sides are master
+ and both sides have isDirectRelation defined, Thoth will not be able to
+ keep these relations in sync.
+\end_layout
+
+\begin_layout Subsection
+Fetch / Refresh
+\end_layout
+
+\begin_layout Standard
+While the standard implementation of fetching relations will give the fetchDBRec
+ords or refreshDBRecords function the conditions it is trying to find the
+ relations for, it will assume this functionality is not available.
+ This means you are encouraged to do a partial retrieval if you can, but
+ the implementation of the junction relations will always filter the records
+ afterwards to make sure the relation data belongs to the previously retrieved
+ main records.
+ From this filtered data, it will gather all the ids (using the junctionKeyName
+ function) from the junction table, and make a set per record of the fetched
+ main records.
+\end_layout
+
+\begin_layout Standard
+This behavior can be changed by defining:
+\end_layout
+
+\begin_layout Description
+isChildRecord if you defined isChildRecord: true on the model, Thoth will
+ look up the relation, get the related record (toOne) or records (toMany)
+ and put them on the main record hash under either the value defined in
+ propertyKey or -- when propertyKey is null or undefined -- propertyName.
+\end_layout
+
+\begin_layout Description
+isDirectRelation
+\begin_inset space ~
+\end_inset
+
+&
+\begin_inset space ~
+\end_inset
+
+isMaster If this flags are both set to true, Thoth will not retrieve anything,
+ unless isChildRecord is set to true.
+ If isMaster is set to false, Thoth will retrieve the records of the opposite
+ side and filter out the records not belonging to the main record and give
+ back the ids or the records themselves if isChildRecord is set to true.
+\end_layout
+
+\begin_layout Subsection
+Create
+\end_layout
+
+\begin_layout Description
+isChildRecord if isChildRecord is true on the model, Thoth will first create
+ the child record with the record data, then create the main record itself,
+ and finally create a junction table record to relate the two records.
+\end_layout
+
+\begin_layout Description
+isMaster if isMaster is true, Thoth will create a new relation record in
+ the junction table binding the main record and the relation.
+\end_layout
+
+\begin_layout Description
+isDirectRelation if isDirectRelation is true, it will assume the id is either
+ on the main record (isMaster is true) or on the opposite record (isMaster
+ is false), so it will not try to create a relation.
+ However, If isChildRecord is set to true, Thoth will create the record
+ with the record data before creating the main record, and will set the
+ primary key as value in the main record.
+\end_layout
+
+\begin_layout Standard
+There is a situation in which it is not possible to give a proper id of
+ the relation, because the related records do not yet exist, and therefore
+ don't have an id yet.
+ Thoth itself does not solve this problem.
+ The client has to solve this by assigning a temporary id, which is consequently
+ replaced by the proper id after the related records have been created.
+\end_layout
+
+\begin_layout Subsection
+Update
+\end_layout
+
+\begin_layout Description
+isChildRecord if isChildRecord is true, and the object doesn't have a primaryKey
+ value, Thoth will assume it has to create the child record.
+ It will first create the child record, then update the main records contents,
+ and finally create a junction table record to relate the two records.
+ If the child record has a primaryKey value, it will check whether a relation
+ exists and update the relation accordingly.
+\end_layout
+
+\begin_layout Description
+isMaster if isMaster is true, Thoth will check whether the relation is available.
+ If not, it will create the relation by creating a record in the junction
+ table.
+\end_layout
+
+\begin_layout Description
+isDirectRelation if isDirectRelation is true, Thoth will check whether the
+ relation record exists and create a relation when there is none.
+ If isChildRecord is also true, it will either update or create the child
+ record.
+ If the child record is created, the id is written to the main record, and
+ saved.
+\end_layout
+
+\begin_layout Subsection
+Delete
+\end_layout
+
+\begin_layout Description
+isChildRecord if isChildRecord is true, and the actual record can be found
+ it will be deleted first, then the relation will be deleted, and finally
+ the main record.
+ If isMaster is false, the child record will not be deleted.
+\end_layout
+
+\begin_layout Description
+isMaster if isMaster is true, Thoth will delete the relation between the
+ records, but will not delete the opposite record.
+\end_layout
+
+\begin_layout Description
+isDirectRelation if isDirectRelation is true, a delete action will only
+ delete the main record, unless isChildRecord is true and isMaster is true,
+ which will then also cause the deletion of the childRecord.
+\end_layout
+
+\end_body
+\end_document
