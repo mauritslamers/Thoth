@@ -28,3 +28,9 @@ exports.classHassComputedProperty = function(prop,cacheable){
     else assert.isUndefined(t.prototype[prop].isCacheable);
   };
 };
+
+exports.hasFunction = function(name){
+  return function(t){
+    assert.isFunction(t[name]);
+  };
+};

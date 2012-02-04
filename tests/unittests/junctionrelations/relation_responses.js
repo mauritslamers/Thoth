@@ -27,19 +27,11 @@ var emptyFunc = function(){};
 
 junctionrelationstest.addBatch({
   'fetch requests': {
-    'for relations with isNested': {
-      topic: function(){
-        var data = createRequest(C.ACTION_FETCH);
-        var store = getStoreWith(this.callback);
-        data.relations[0].type = 'toOne';
-        data.relations[0].propertyName = 'exam';
-        data.relations[0].isNested = true;
-        store.fetch(data,'test',emptyFunc);
-      },
+    topic: function(){
+      var store = getStoreWith(this.callback);
       
-      'should call fetchDBRecords for the main record': function(sr){
-        assert.strictEqual(sr.bucket,'student');
-      }
+      var sR = makeStoreReq(createRequest())
+      store.fetchRelation()
     }
   }
 }).run();

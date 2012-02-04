@@ -17,35 +17,22 @@ junctionrelationstest.addBatch({
         assert.isTrue(t.primaryKey === 'id');
       },
       
-      'fetchRelation': function(t){
-        assert.isFunction(t.fetchRelation);
-      },
+      'fetchRelation': testbase.hasFunction('fetchRelation'),
       
-      'createRelation': function(t){
-        assert.isFunction(t.createRelation);
-      },
+      'createRelation': testbase.hasFunction('createRelation'),
       
-      'updateRelation': function(t){
-        assert.isFunction(t.updateRelation);
-      },
+      'updateRelation': testbase.hasFunction('updateRelation'),
       
-      'destroyRelation': function(t){
-        assert.isFunction(t.destroyRelation);
-      },
+      'destroyRelation': testbase.hasFunction('destroyRelation'),
       
-      'junctionTableName': function(t){
-        assert.isFunction(t.junctionTableName);
-      },
+      'junctionTableName': testbase.hasFunction('junctionTableName'),
       
-      'junctionKeyName': function(t){
-        assert.isFunction(t.junctionKeyName);
-      }
+      'junctionKeyName': testbase.hasFunction('junctionKeyName')
+      
     },
     
     'it should honor': {
-      topic: function(){
-        return Thoth.Store.create(Thoth.mixins.junctionRelations,{ primaryKey: 'key'});
-      },
+      topic: Thoth.Store.create(Thoth.mixins.junctionRelations,{ primaryKey: 'key'}),
       
       'the primaryKey override': function(t){
         assert.isTrue(t.primaryKey === 'key');
@@ -99,11 +86,6 @@ junctionrelationstest.addBatch({
     }
   }
   
-})
-.addBatch({
-  'when run with an isNested relation': {
-    
-  }
 })
 
 
