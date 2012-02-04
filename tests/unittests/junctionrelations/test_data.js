@@ -14,7 +14,7 @@ var baseObj = {
 };
 
 var relation = {
-  type: null,
+  type: 'toOne',
   oppositeType: null,
   bucket: 'exam',
   primaryKey: 'id',
