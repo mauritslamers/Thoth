@@ -437,7 +437,7 @@ Fetch / Refresh
 
 \begin_layout Standard
 While the standard implementation of fetching relations will give the fetchDBRec
-ords or refreshDBRecords function the conditions it is trying to find the
+ords or refreshDBRecord function the conditions it is trying to find the
  relations for, it will assume this functionality is not available.
  This means you are encouraged to do a partial retrieval if you can, but
  the implementation of the junction relations will always filter the records
@@ -473,6 +473,7 @@ isMaster If this flags are both set to true, Thoth will not retrieve anything,
  If isMaster is set to false, Thoth will retrieve the records of the opposite
  side and filter out the records not belonging to the main record and give
  back the ids or the records themselves if isChildRecord is set to true.
+ 
 \end_layout
 
 \begin_layout Subsection
