@@ -143,6 +143,11 @@ begin{lstlisting}
 
 \begin_layout Plain Layout
 
+"keys": {"type":["number","string","array","undefined"], "required":false},
+\end_layout
+
+\begin_layout Plain Layout
+
 "primaryKey": {"type":"string","required":true},
 \end_layout
 
@@ -219,6 +224,13 @@ bucket the bucket/document/table/resource containing the data of the target
 \end_layout
 
 \begin_layout Description
+keys keys is either single primary key value or an array of primary key
+ values of the opposite side of the relation.
+ If isChildRecord is true, this key contains the primaryKey value of the
+ child record (if isNested is not true).
+\end_layout
+
+\begin_layout Description
 primaryKey the primaryKey key on the relations target record
 \end_layout
 
@@ -257,17 +269,6 @@ If this flag is set, the Store class will try to call a few functions in
 \begin_layout Description
 fetchRelation(storeRequest,records,relation,callback) This function is called
  to retrieve a relation for a set of records.
- If the relation should not be retrieved at all, this function immediately
- calls the callback with a 
-\begin_inset Quotes eld
-\end_inset
-
-should_not_handle
-\begin_inset Quotes erd
-\end_inset
-
- error.
- 
 \end_layout
 
 \begin_layout Description
@@ -391,6 +392,7 @@ isDirectRelation If this flag is set to true, Thoth will not look up or
 \begin_layout Description
 type For all relations the actions performed are the same, independent of
  the actual type of the relation.
+ The description given is the one for single records.
 \end_layout
 
 \begin_layout Standard
@@ -502,6 +504,17 @@ There is a situation in which it is not possible to give a proper id of
  Thoth itself does not solve this problem.
  The client has to solve this by assigning a temporary id, which is consequently
  replaced by the proper id after the related records have been created.
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+ThothSC solves this by creating the records first and keeping a temporary
+ id on the client, and updating everything when the ids are known.
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
@@ -509,23 +522,28 @@ Update
 \end_layout
 
 \begin_layout Description
-isChildRecord if isChildRecord is true, and the object doesn't have a primaryKey
- value, Thoth will assume it has to create the child record.
+isChildRecord if isChildRecord is true, the object on the main record exists
+ and it doesn't have a primaryKey value, Thoth will assume it has to create
+ the child record.
  It will first create the child record, then update the main records contents,
  and finally create a junction table record to relate the two records.
  If the child record has a primaryKey value, it will check whether a relation
- exists and update the relation accordingly.
+ exists and update the relation and child record accordingly.
 \end_layout
 
 \begin_layout Description
-isMaster if isMaster is true, Thoth will check whether the relation is available.
- If not, it will create the relation by creating a record in the junction
- table.
+isMaster if isMaster is true, Thoth will allow a change to the relation
+ data.
+ If a key value is available (in the keys property on the relation), Thoth
+ will check whether the relation is available and if not, it will create
+ the relation(s) by creating a record in the junction table.
+ If a key value is not available, Thoth will not try to update the relation.
 \end_layout
 
 \begin_layout Description
-isDirectRelation if isDirectRelation is true, Thoth will check whether the
- relation record exists and create a relation when there is none.
+isDirectRelation if isDirectRelation is true, isMaster is true and there
+ is a primary Key value in the record, Thoth will check whether the relation
+ record exists and create a the record when there is none.
  If isChildRecord is also true, it will either update or create the child
  record.
  If the child record is created, the id is written to the main record, and
