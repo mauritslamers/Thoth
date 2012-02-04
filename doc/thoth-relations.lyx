@@ -249,6 +249,10 @@ propertyKey In case the propertyName in the SproutCore application is different
 The Relations API
 \end_layout
 
+\begin_layout Subsection
+Introduction
+\end_layout
+
 \begin_layout Standard
 By default Thoth and ThothSC will assume that the relations will be handled
  in the standard *DBRecords function implementations.
@@ -323,6 +327,49 @@ If you do not want this, you can set the combinedReturnCalls setting on
  the model.
  Thoth will then wait until all relations callbacks have been called before
  integrating the data and sending it to the client.
+\end_layout
+
+\begin_layout Subsection
+Implementation
+\end_layout
+
+\begin_layout Standard
+The Thoth Store expects the functions of the Relations API to use the callbacks
+ to return their data, even when the data can be returned immediately.
+ The callbacks need to be called a data package called a relation set.
+ A Relation set is an object having the following properties:
+\end_layout
+
+\begin_layout Description
+bucket This is the bucket of the main record this relation belongs to
+\end_layout
+
+\begin_layout Description
+propertyName This is the propertyName the relation data should end up on
+ in the Sproutcore application
+\end_layout
+
+\begin_layout Description
+propertyKey In case the propertyName is different from the key on the hash,
+ this contains the actual record property.
+\end_layout
+
+\begin_layout Description
+keys An array of primary key values of the main records.
+ This array is used to read the data from the data property
+\end_layout
+
+\begin_layout Description
+data An object having the primary key values inside keys as properties.
+ The value of these properties is either the opposite key or keys the main
+ record with this id points to, or the entire object if the relation has
+ isChildRecord set to true.
+\end_layout
+
+\begin_layout Standard
+The implementation of the Relation API does not have to do the integration
+ with the main records, but is only responsible for doing the proper requests,
+ the sorting of keys and or properties and returning the data correctly.
 \end_layout
 
 \begin_layout Section
@@ -573,6 +620,66 @@ isMaster if isMaster is true, Thoth will delete the relation between the
 isDirectRelation if isDirectRelation is true, a delete action will only
  delete the main record, unless isChildRecord is true and isMaster is true,
  which will then also cause the deletion of the childRecord.
+\end_layout
+
+\begin_layout Section
+Example
+\end_layout
+
+\begin_layout Standard
+Example data you can use to illustrate the workings:
+\end_layout
+
+\begin_layout Subsection
+join table
+\end_layout
+
+\begin_layout Description
+student { id: 1}
+\end_layout
+
+\begin_layout Description
+exam_student {id: 1, student_id: 1, exam_id: 1 }
+\end_layout
+
+\begin_layout Description
+exam: {id: 1}
+\end_layout
+
+\begin_layout Subsection
+direct relation, student isMaster (request will only be handled from exam
+ side)
+\end_layout
+
+\begin_layout Description
+student { id: 1, exam_id: 1 }
+\end_layout
+
+\begin_layout Description
+exam: { id: 1, student: _relation_ }
+\end_layout
+
+\begin_layout Subsection
+direct relation, exam isMaster (request will only be handled from the student
+ side)
+\end_layout
+
+\begin_layout Description
+student {id: 1, exam: _relation_ }
+\end_layout
+
+\begin_layout Description
+exam: {id: 1, student_id: 1}
+\end_layout
+
+\begin_layout Subsection
+toOne vs toMany
+\end_layout
+
+\begin_layout Standard
+All the examples above work the same, except that when isDirectRelation
+ is used, the relating id would be ids and the content would be an array.
+ 
 \end_layout
 
 \end_body
