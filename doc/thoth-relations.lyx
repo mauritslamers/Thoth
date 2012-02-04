@@ -261,9 +261,11 @@ flag to true.
 \end_layout
 
 \begin_layout Standard
-If this flag is set, the Store class will try to call a few functions in
- order to handle the relation data.
+If this flag is set, the Store class will try to call the Relation API functions
+ in order to handle the relation data.
  If these functions are not found it will give a console warning.
+ Note that when isNested is set to true on the relation, these functions
+ will not be called.
 \end_layout
 
 \begin_layout Description
