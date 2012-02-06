@@ -347,41 +347,63 @@ junctionrelationstest
             // when the relation is in the junction table, but the relation does not exist.
           },
           
-          'should return an empty array': { // when the relation is not in the junction table
+          'should return null': { // when the relation is not in the junction table
             
-          }
-          'should call fetchDBRecords with the junctiontable': {
-            topic: function(){
-              var store = getStoreWith(this.callback);
-              var sr = makeStoreReq(createRequest(),C.ACTION_FETCH);
-              sr.relations[0].type = 'toOne';
-              sr.relations[0].isMaster = true;
-              sr.relations[0].isChildRecord = true;
-              sr.relations[0].isDirectRelation = false;
-              store.fetchRelation(sr,{id: 1}, sr.relations[0],emptyFunc());
-            },
-
-            'and the correct search data': function(t){
-              assert.strictEqual(t.bucket,junctionBucket);
-              assert.strictEqual(t.conditions,"student_id in {keys}");
-              assert.isArray(t.parameters.keys);
-              assert.deepEqual(t.parameters.keys,[1]);
-            }
-          
-        },
+          },
+         //  'should call fetchDBRecords with the junctiontable': {
+         //     topic: function(){
+         //       var store = getStoreWith(this.callback);
+         //       var sr = makeStoreReq(createRequest(),C.ACTION_FETCH);
+         //       sr.relations[0].type = 'toOne';
+         //       sr.relations[0].isMaster = true;
+         //       sr.relations[0].isChildRecord = true;
+         //       sr.relations[0].isDirectRelation = false;
+         //       store.fetchRelation(sr,{id: 1}, sr.relations[0],emptyFunc());
+         //     },
+         // 
+         //     'and the correct search data': function(t){
+         //       assert.strictEqual(t.bucket,junctionBucket);
+         //       assert.strictEqual(t.conditions,"student_id in {keys}");
+         //       assert.isArray(t.parameters.keys);
+         //       assert.deepEqual(t.parameters.keys,[1]);
+         //     }
+         //   
+         // },
         
         'and having isChildRecord false': {
+          'should return a key': {
+            // when the record id is in the junciton table
+          },
           
+          'should return null': {
+            // when no relation can be found
+          }
         }
       },
       
       'which is toMany': {
         'and having isChildRecord true': {
+          'should return an array with records': {
+            //when the relations are in the junction table, and the records are found
+          },
           
+          'should return an array with mix of null and records': {
+            //when only a few of the found relation ids can be found in the relation table
+          },
+          
+          'should return an empty array': {
+            // when no relation can be found
+          }
         },
         
         'and having isChildRecord false': {
+          'should return an array with record ids': {
+            // when the relations are in the junction table
+          },
           
+          'should return an empty array': {
+            // when no relations can be found
+          }
         }        
       }
     }
