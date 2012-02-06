@@ -615,22 +615,305 @@ junctionrelationstest
   'to a direct relation': {
     'which is toOne': {
       'having isChildRecord true': {
+        'and isMaster is true': {
+          'should return a single record': {
+            // when a child record is found
+            topic: function(){
+              var store = getStoreWith();
+              store.refreshDBRecord = function(sr,ci,cb){
+                cb({id: 1, passed: true});                  
+              };
+              var sr = makeStoreReq(createRequest(),C.ACTION_FETCH);
+              sr.relations[0].type = 'toOne';
+              sr.relations[0].isMaster = true;
+              sr.relations[0].isChildRecord = true;
+              sr.relations[0].isDirectRelation = true;
+              var mycb = makeVowsCallbackWrapper(this.callback);
+              store.fetchRelation(sr,{id: 1, exam_id: 1}, sr.relations[0],mycb);
+            },
 
+            'containing the correct data': function(t){
+              assert.isArray(t.keys);
+              assert.isTrue(t.keys.length === 1);
+              assert.deepEqual(t.data[t.keys[0]], {id: 1, passed: true});
+              // assert.isTrue(t.keys.length === 2);
+            }
+          },
+          
+          'should return null': {
+            // when a child record is not found
+            topic: function(){
+              var store = getStoreWith();
+              store.refreshDBRecord = function(sr,ci,cb){
+                cb(null);                  
+              };
+              var sr = makeStoreReq(createRequest(),C.ACTION_FETCH);
+              sr.relations[0].type = 'toOne';
+              sr.relations[0].isMaster = true;
+              sr.relations[0].isChildRecord = true;
+              sr.relations[0].isDirectRelation = true;
+              var mycb = makeVowsCallbackWrapper(this.callback);
+              store.fetchRelation(sr,{id: 1, exam_id: 1}, sr.relations[0],mycb);
+            },
+
+            'should contain the correct data': function(t){
+              assert.isArray(t.keys);
+              assert.isTrue(t.keys.length === 1);
+              assert.isNull(t.data[t.keys[0]]);
+              // assert.isTrue(t.keys.length === 2);
+            }
+          }
+        },
+        
+        'and isMaster is false': {
+          'should return a single record': {
+            // when a child record is found
+            topic: function(){
+              var store = getStoreWith();
+              store.fetchDBRecord = function(sr,ci,cb){
+                cb([{id: 1, student_id: 1, passed: true}]);  
+              };
+              var sr = makeStoreReq(createRequest(),C.ACTION_FETCH);
+              sr.relations[0].type = 'toOne';
+              sr.relations[0].isMaster = false;
+              sr.relations[0].isChildRecord = true;
+              sr.relations[0].isDirectRelation = true;
+              var mycb = makeVowsCallbackWrapper(this.callback);
+              store.fetchRelation(sr,{id: 1}, sr.relations[0],mycb);
+            },
+
+            'should contain the correct data': function(t){
+              assert.isArray(t.keys);
+              assert.isTrue(t.keys.length === 1);
+              assert.deepEqual(t.data[t.keys[0]], {id: 1, student_id: 1, passed: true });
+            }            
+          },
+
+          'should return null': {
+            // when there is no opposite side...
+            topic: function(){
+              var store = getStoreWith();
+              store.fetchDBRecord = function(sr,ci,cb){
+                cb([]);                  
+              };
+              var sr = makeStoreReq(createRequest(),C.ACTION_FETCH);
+              sr.relations[0].type = 'toOne';
+              sr.relations[0].isMaster = false;
+              sr.relations[0].isChildRecord = true;
+              sr.relations[0].isDirectRelation = true;
+              var mycb = makeVowsCallbackWrapper(this.callback);
+              store.fetchRelation(sr,{id: 1}, sr.relations[0],mycb);
+            },
+
+            'should contain the correct data': function(t){
+              assert.isArray(t.keys);
+              assert.isTrue(t.keys.length === 1);
+              assert.isNull(t.data[t.keys[0]]);
+            }            
+          }          
+        }
+        
       },
       
       'having isChildRecord false': {
+        // isMaster should be false anyway here, as the relation is not retrievable with isMaster = true
+        'should return a single key': {
+          // when a child record is found
+          topic: function(){
+            var store = getStoreWith();
+            store.fetchDBRecord = function(sr,ci,cb){
+              cb([{id: 1, student_id: 1, passed: true}]);                  
+            };
+            var sr = makeStoreReq(createRequest(),C.ACTION_FETCH);
+            sr.relations[0].type = 'toOne';
+            sr.relations[0].isMaster = false;
+            sr.relations[0].isChildRecord = false;
+            sr.relations[0].isDirectRelation = true;
+            var mycb = makeVowsCallbackWrapper(this.callback);
+            store.fetchRelation(sr,{id: 1}, sr.relations[0],mycb);
+          },
+
+          'should contain the correct data': function(t){
+            assert.isArray(t.keys);
+            assert.isTrue(t.keys.length === 1);
+            assert.equal(t.data[t.keys[0]], 1);
+          }
+        },
+
+        'should return null': {
+          // when there is no opposite side...
+          topic: function(){
+            var store = getStoreWith();
+            store.fetchDBRecord = function(sr,ci,cb){
+              cb([]);                  
+            };
+            var sr = makeStoreReq(createRequest(),C.ACTION_FETCH);
+            sr.relations[0].type = 'toOne';
+            sr.relations[0].isMaster = false;
+            sr.relations[0].isChildRecord = true;
+            sr.relations[0].isDirectRelation = true;
+            var mycb = makeVowsCallbackWrapper(this.callback);
+            store.fetchRelation(sr,{id: 1}, sr.relations[0],mycb);
+          },
+
+          'should contain the correct data': function(t){
+            assert.isArray(t.keys);
+            assert.isTrue(t.keys.length === 1);
+            assert.isNull(t.data[t.keys[0]]);
+          }
+        }        
         
       }
     },
     
     'which is toMany': {
-      
       'having isChildRecord true': {
+        'and isMaster is true': {
+          'should return an array of objects': {
+            // when records are found
+            topic: function(){
+              var store = getStoreWith();
+              store.fetchDBRecord = function(sr,ci,cb){
+                cb([{id: 1, passed: true},{ id: 2, passed: false }, { id: 3, passed: true }]);                  
+              };
+              var sr = makeStoreReq(createRequest(),C.ACTION_FETCH);
+              sr.relations[0].type = 'toMany';
+              sr.relations[0].isMaster = true;
+              sr.relations[0].isChildRecord = true;
+              sr.relations[0].isDirectRelation = true;
+              var mycb = makeVowsCallbackWrapper(this.callback);
+              store.fetchRelation(sr,{id: 1, exam_ids: [1,2]}, sr.relations[0],mycb);
+            },
+
+            'should contain the correct data': function(t){
+              assert.isArray(t.keys);
+              assert.isTrue(t.keys.length === 1);
+              assert.deepEqual(t.data[t.keys[0]], [{id: 1, passed: true },{ id: 2, passed: false }]);
+            }
+          },
+          
+          'should return an array with null values': {
+            // should return an array of null values when relations cannot be found
+            topic: function(){
+              var store = getStoreWith();
+              store.fetchDBRecord = function(sr,ci,cb){
+                cb([]);                  
+              };
+              var sr = makeStoreReq(createRequest(),C.ACTION_FETCH);
+              sr.relations[0].type = 'toMany';
+              sr.relations[0].isMaster = true;
+              sr.relations[0].isChildRecord = true;
+              sr.relations[0].isDirectRelation = true;
+              var mycb = makeVowsCallbackWrapper(this.callback);
+              store.fetchRelation(sr,{id: 1, exam_ids: [1,2]}, sr.relations[0],mycb);
+            },
+
+            'should contain the correct data': function(t){
+              assert.isArray(t.keys);
+              assert.isTrue(t.keys.length === 1);
+              assert.deepEqual(t.data[t.keys[0]], [null,null]);
+            }
+          }
+          
+        },
+        
+        'and isMaster is false': {
+          'should return an array of objects': {
+            // when records are found
+            topic: function(){
+              var store = getStoreWith();
+              store.fetchDBRecord = function(sr,ci,cb){ // give extra useless data...
+                cb([{id: 1, student_id: 1, passed: true},{ id: 2, student_id: 1, passed: false }, { id: 3, student_id: 2, passed: true }]);                  
+              };
+              var sr = makeStoreReq(createRequest(),C.ACTION_FETCH);
+              sr.relations[0].type = 'toMany';
+              sr.relations[0].isMaster = false;
+              sr.relations[0].isChildRecord = true;
+              sr.relations[0].isDirectRelation = true;
+              var mycb = makeVowsCallbackWrapper(this.callback);
+              store.fetchRelation(sr,{id: 1}, sr.relations[0],mycb);
+            },
+
+            'should contain the correct data': function(t){
+              assert.isArray(t.keys);
+              assert.isTrue(t.keys.length === 1);
+              assert.deepEqual(t.data[t.keys[0]], [{id: 1, passed: true }, { id: 2, passed: false }]);
+            }
+          },
+          
+          'should return an empty array': {
+            // when relation cannot be found
+            topic: function(){
+              var store = getStoreWith();
+              store.fetchDBRecord = function(sr,ci,cb){ // give extra useless data...
+                cb([{ id: 3, student_id: 2, passed: true }]); 
+              };
+              var sr = makeStoreReq(createRequest(),C.ACTION_FETCH);
+              sr.relations[0].type = 'toMany';
+              sr.relations[0].isMaster = false;
+              sr.relations[0].isChildRecord = true;
+              sr.relations[0].isDirectRelation = true;
+              var mycb = makeVowsCallbackWrapper(this.callback);
+              store.fetchRelation(sr,{id: 1}, sr.relations[0],mycb);
+            },
+
+            'should contain the correct data': function(t){
+              assert.isArray(t.keys);
+              assert.isTrue(t.keys.length === 1);
+              assert.deepEqual(t.data[t.keys[0]], [{id: 1, passed: true }, { id: 2, passed: false }]);
+            }            
+          }
+        }
         
       },
       
       'having isChildRecord false': {
+        // only isMaster is false is retrievable
+        'should return an array of keys': {
+          // when relation is found
+          topic: function(){
+            var store = getStoreWith();
+            store.fetchDBRecord = function(sr,ci,cb){ // give extra useless data...
+              cb([{id: 1, student_id: 1, passed: true},{ id: 2, student_id: 1, passed: false }, { id: 3, student_id: 2, passed: true }]);                  
+            };
+            var sr = makeStoreReq(createRequest(),C.ACTION_FETCH);
+            sr.relations[0].type = 'toMany';
+            sr.relations[0].isMaster = false;
+            sr.relations[0].isChildRecord = false;
+            sr.relations[0].isDirectRelation = true;
+            var mycb = makeVowsCallbackWrapper(this.callback);
+            store.fetchRelation(sr,{id: 1}, sr.relations[0],mycb);
+          },
+
+          'should contain the correct data': function(t){
+            assert.isArray(t.keys);
+            assert.isTrue(t.keys.length === 1);
+            assert.deepEqual(t.data[t.keys[0]], [ 1,2 ]);
+          }
+        },
         
+        'should return an empty array': {
+          // when relation is not found
+          topic: function(){
+            var store = getStoreWith();
+            store.fetchDBRecord = function(sr,ci,cb){ // give extra useless data...
+              cb([{ id: 3, student_id: 2, passed: true }]);                  
+            };
+            var sr = makeStoreReq(createRequest(),C.ACTION_FETCH);
+            sr.relations[0].type = 'toMany';
+            sr.relations[0].isMaster = false;
+            sr.relations[0].isChildRecord = false;
+            sr.relations[0].isDirectRelation = true;
+            var mycb = makeVowsCallbackWrapper(this.callback);
+            store.fetchRelation(sr,{id: 1}, sr.relations[0],mycb);
+          },
+
+          'should contain the correct data': function(t){
+            assert.isArray(t.keys);
+            assert.isTrue(t.keys.length === 1);
+            assert.deepEqual(t.data[t.keys[0]], []);
+          }          
+        }
       }      
     }
   }
