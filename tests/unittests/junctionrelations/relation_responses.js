@@ -370,6 +370,8 @@ junctionrelationstest
                   var sr = makeStoreReq(createRequest(),C.ACTION_FETCH);
                   sr.relations[0].type = 'toOne';
                   sr.relations[0].isMaster = true;
+                  sr.relations[0].propertyName = 'exams';
+                  sr.relations[0].propertyKey = 'exam_ids';
                   sr.relations[0].isChildRecord = true;
                   sr.relations[0].isDirectRelation = false;
                   var mycb = makeVowsCallbackWrapper(this.callback);
@@ -377,6 +379,8 @@ junctionrelationstest
                 },
                 
                 'containing the correct data': function(t){ // gives back a relation set, so check the contents...
+                  assert.equal(t.propertyName,'exams');
+                  assert.equal(t.propertyKey,'exam_ids');
                   assert.isArray(t.keys);
                   assert.isTrue(t.keys.length === 1);
                   assert.isFalse(t.data[t.keys[0]].passed);
