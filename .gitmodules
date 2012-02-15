@@ -13,3 +13,6 @@
 [submodule "lib/node-ldap"]
 	path = lib/node-ldap
 	url = git://github.com/jeremycx/node-LDAP.git
+[submodule "tests/loadtests/Thoth-SC"]
+	path = tests/loadtests/Thoth-SC
+	url = git://github.com/mauritslamers/Thoth-SC
