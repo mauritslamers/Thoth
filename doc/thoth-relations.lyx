@@ -235,6 +235,22 @@ primaryKey the primaryKey key on the relations target record
 \end_layout
 
 \begin_layout Description
+relationKey In case the key value has a name which is constructed differently
+ than the standard, this will override the standard setting for this relation
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+In ThothSC this is done automatically when a key setting is found on the
+ opposite relation property.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
 propertyName the propertyName of this relation on the record for which this
  relation is requested
 \end_layout
