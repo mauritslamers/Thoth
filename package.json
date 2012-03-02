@@ -1,0 +1,20 @@
+{
+  "name"          : "Thoth",
+  "description"   : "A Node-based communications hub for multi-user SproutCore applications",
+  "repository"    : { "type" : "git",
+                      "url"  : "https://github.com/mauritslamers/Thoth.git" },
+  "url"           : "http://devmt.hku.nl/~maurits/doku.php?id=thoth:start",
+  "keywords"      : ["thoth", "sproutcore"],
+  "author"        : "Maurits Lamers <mauritslamers@gmail.com>",
+  "contributors"  : ["Jeff Pittman"],
+  "dependencies"  : {
+	  "socket.io": "0.8.7",
+	  "mysql": "0.9.5"
+  },
+  "devDependencies": {
+    "vows": "0.6.x"
+  },
+  "version"       : "0.5beta",
+  "scripts"       : {},
+  "engines"       : {"node": "0.6.x"}
+}
