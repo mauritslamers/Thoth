@@ -14,7 +14,7 @@
   "devDependencies": {
     "vows": "0.6.x"
   },
-  "version"       : "0.5beta",
+  "version"       : "0.5.0-beta",
   "scripts"       : {},
   "engines"       : {"node": "0.6.x"}
 }
