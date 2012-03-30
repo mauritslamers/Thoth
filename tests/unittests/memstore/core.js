@@ -198,8 +198,60 @@ memstoretest.addBatch({
           }
         }
       }
-    }
+    } 
+  }
+})
+.addBatch({
+  'When': {
+    topic: function(){
+      var t = base.Thoth.MemStore.create();
+      t.start();
+      return t;
+    },
     
+    'first create': {
+      topic: function(store){
+        var req = base.Thoth.API.StoreRequest.create({
+          bucket: 'test',
+          primaryKey: 'id',
+          key: 'testkey',
+          record: { testprop: 'testval'},
+          requestType: C.ACTION_CREATE
+        });
+        store.createDBRecord(req,{},this.callback);
+      },
+      
+      'and then delete a record': {
+        topic: function(rec,store){
+          var req = base.Thoth.API.StoreRequest.create({
+            bucket: 'test',
+            primaryKey: 'id',
+            key: 'testkey',
+            requestType: C.ACTION_DELETE
+          });
+          store.deleteDBRecord(req,{},this.callback);
+        },
+        
+        'we should get true on success': function(result){
+          assert.isTrue(result);
+        },
+        
+        'the memstore': {
+          topic: function(updatedrec,originalrec,store){
+            return store;
+          },
+          
+          'should not contain the record': function(t){
+            assert.isObject(t._tables['test']);
+            assert.isUndefined(t._tables['test']['testkey']);
+          },
+          
+          'should still have one for the counters': function(t){
+            assert.equal(t._counters['test'],1);
+          }
+        }
+      }
+    } 
   }
 })
 .run();
