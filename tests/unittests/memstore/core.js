@@ -232,7 +232,7 @@ memstoretest.addBatch({
           store.deleteDBRecord(req,{},this.callback);
         },
         
-        'we should get true on success': function(result){
+        'we should get true on delete success': function(result){
           assert.isTrue(result);
         },
         
@@ -252,6 +252,56 @@ memstoretest.addBatch({
         }
       }
     } 
+  }
+})
+.addBatch({
+  'When': {
+    topic: function(){
+      var t = base.Thoth.MemStore.create();
+      t.start();
+      return t;      
+    },
+    
+    'first creating a set of records': {
+      topic: function(store){
+        var i, req;
+        var me = this;
+        var count = 0;
+        var f = function(){
+          count +=1;
+          if(count===9) me.callback();
+        };
+        for(i=0;i<10;i+=1){
+          req = base.Thoth.API.StoreRequest.create({
+            bucket: 'test',
+            record: {
+              prop: 'test_' + i
+            },
+            requestType: C.ACTION_CREATE
+          });
+          store.createDBRecord(req,{},f);
+        }
+      },
+      
+      'returning the last record': function(rec){
+        sys.log('returning last rec: ' + sys.inspect(rec));
+      },
+      
+      'and then fetch': {
+        topic: function(store){
+          var req = base.Thoth.API.StoreRequest.create({
+            bucket: 'test',
+            requestType: C.ACTION_FETCH
+          });
+          store.fetchDBRecords(req,{},this.callback);
+        },
+        
+        'the store should return all records': function(data){
+          assert.isArray(data);
+          assert.lengthOf(data,10);
+        }
+      }
+    }
   }
 })
 .run();
