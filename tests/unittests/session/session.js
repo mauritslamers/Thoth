@@ -4,6 +4,8 @@ var sessionTests = base.vows.describe("Session Module tests");
 var API = base.Thoth.API;           
 var C = base.Thoth.Constants;
 var sys = require('util');
+var _CREATESESSIONKEY_;
+var _CURRENTLASTSEEN_;
 
 sessionTests.addBatch({
   
@@ -121,7 +123,6 @@ sessionTests.addBatch({
   'the query cache': {
     topic: function(){
       var ses = base.Thoth.Session.create();
-      //ses.start();
       return ses;
     },
     
@@ -193,56 +194,194 @@ sessionTests.addBatch({
     }
   }
 })
-// .addBatch({
-//   'creating a session': {
-//     topic: function(){
-//       var ses = base.Thoth.Session.create({
-//         store: base.Thoth.DiskStore.creates({ filename: 'test.js'}) // create a temporary file, not mess with standards
-//       });
-//       ses.start();
-//       return ses;
-//     },
-//     
-//     'should': {
-//       topic: function(ses){
-//         return ses.createSession(); // with user data
-//       },
-//       
-//       'return a sessionKey': function(t){
-//         assert.isString(t);
-//         assert.lengthOf(t,32);
-//       },
-//       
-//       'and': {
-//         topic: function(key,ses){
-//           return {ses: ses, key: key}; // need some mechanism to have both items in the test
-//         },
-//         
-//         'the key should be in Session._sessionKeys': function(t){
-//           assert.include(t.ses._sessionKeys, t.key);
-//         },
-//         
-//         'the contents of the session data': {
-//           topic: function(t){
-//             var req = t._createStoreRequest('session',t.key,C.ACTION_REFRESH);
-//             t.ses.store.refreshRecord(req,{},this.callback);
-//           },
-//           
-//           'should have the correct data': function(data){
-//             
-//           }
-//         }
-//       }
-//     }
-//   }
-// })
+.addBatch({
+  'creating a session': {
+    topic: function(){
+      //first delete the test.js file 
+      try {
+        require('fs').unlinkSync(base.Thoth.getRootPath()+'/tmp/test.js');
+      }
+      catch(e){
+        // do nothing if file doesn't exist...
+      }
+      
+      var ses = base.Thoth.Session.create({
+        store: base.Thoth.DiskStore.create({ filename: 'test.js'}) // create a temporary file, not mess with standards
+      });
+      return ses;
+    },
+    
+    'should': {
+      topic: function(ses){
+        ses.createSession({
+          user: 'testuser',
+          role: 'teacher'
+        },this.callback); // with user data
+      },
+      
+      'should give a record with the correct data': function(data){
+        //sys.log('arguments: ' + sys.inspect(arguments));
+        assert.isObject(data);
+        assert.strictEqual(data.username,'testuser');
+        //assert.strictEqual(data.sessionKey,_CREATESESSIONKEY_);
+        assert.isString(data.sessionKey);
+        _CREATESESSIONKEY_ = data.sessionKey;
+        assert.deepEqual(data.userData,{ user: 'testuser', role: 'teacher' });
+        assert.isTrue(data.lastSeen < new Date().getTime());
+        _CURRENTLASTSEEN_ = data.lastSeen;
+        assert.isArray(data.queries);
+        assert.isEmpty(data.queries);
+        assert.isObject(data.bucketKeys);
+        assert.isEmpty(data.bucketKeys);
+        assert.isArray(data.requestQueue);
+        assert.isEmpty(data.requestQueue);
+      },
+      
+      // 'return a sessionKey': function(t){
+      //         assert.isString(t);
+      //         assert.isTrue(t.length === 33);
+      //         _CREATESESSIONKEY_ = t; // save for later
+      //       },
+      
+      'and': {
+        topic: function(rec,ses){
+          //return {ses: ses, key: key}; // need some mechanism to have both items in the test
+          return ses;
+        },
+        
+        'the key should be in Session._sessionKeys': function(t){
+          assert.include(t._sessionKeys, _CREATESESSIONKEY_);
+        },
+        
+        'the contents of the session data': {
+          topic: function(t){
+            var me = this;
+            var req = t._createStoreRequest('testuser',_CREATESESSIONKEY_,C.ACTION_REFRESH);
+            t.store.refreshRecord(req,{},this.callback);
+          },
+          
+          'should have the correct data': function(data){
+            assert.isObject(data);
+            assert.isObject(data.refreshResult);
+            var rec = data.refreshResult;
+            assert.strictEqual(rec.username,'testuser');
+            assert.strictEqual(rec.sessionKey,_CREATESESSIONKEY_);
+            assert.deepEqual(rec.userData,{ user: 'testuser', role: 'teacher' });
+            assert.isTrue(rec.lastSeen < new Date().getTime());
+            assert.isArray(rec.queries);
+            assert.isEmpty(rec.queries);
+            assert.isObject(rec.bucketKeys);
+            assert.isEmpty(rec.bucketKeys);
+            assert.isArray(rec.requestQueue);
+            assert.isEmpty(rec.requestQueue);
+          }
+        },
+        
+        'checking the session': {
+          topic: function(t){
+            t.checkSession({ user: 'testuser', sessionKey: _CREATESESSIONKEY_}, this.callback);
+          },
+          
+          'should return true': function(val){
+            assert.isObject(val); // get userdata
+            assert.equal(val.user, 'testuser');
+            assert.equal(val.sessionKey, _CREATESESSIONKEY_);
+            assert.equal(val.role, 'teacher');
+          },
+          
+          'should update the lastSeen value': {
+            topic: function(obj,t){
+              var req = t._createStoreRequest('testuser',_CREATESESSIONKEY_,C.ACTION_REFRESH);
+              t.store.refreshRecord(req,{},this.callback);
+            },
+            
+            'to a newer value': function(data){
+              sys.log('arguments to lastSeen: ' + sys.inspect(arguments));
+              assert.isTrue(data.refreshResult.lastSeen > _CURRENTLASTSEEN_);
+            }
+          },
+          
+          'and then deleting the session': {
+            topic: function(obj,t){
+              t.destroySession('testuser',_CREATESESSIONKEY_,this.callback);
+            },
+            
+            'the callback should give true': function(val){
+              assert.isTrue(val);
+            },
+            
+            'the session record': {
+              topic: function(rec,rec2,t){
+                var req = t._createStoreRequest('testuser',_CREATESESSIONKEY_,C.ACTION_REFRESH);
+                t.store.refreshRecord(req,{},this.callback);
+              },
+              
+              'should not exist anymore': function(data){
+                assert.isNull(data);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+})
+.addBatch({
+  'When': {
+    topic: function(){
+      //first delete the test.js file 
+      try {
+        require('fs').unlinkSync(base.Thoth.getRootPath()+'/tmp/test.js');
+      }
+      catch(e){
+        // do nothing if file doesn't exist...
+      }
+      
+      var ses = base.Thoth.Session.create({
+        store: base.Thoth.DiskStore.create({ filename: 'test.js'}) // create a temporary file, not mess with standards
+      });
+      return ses;      
+    },
+    
+    'creating a session': {
+      topic: function(ses){
+        ses.createSession({
+          user: 'testuser',
+          role: 'teacher'
+        },this.callback); // with user data
+      },
+      
+      'the callback should give a record with a sessionKey': function(data){
+        assert.isString(data.sessionKey);
+        _CREATESESSIONKEY_ = data.sessionKey;
+      },
+      
+      'and storing': {
+        
+        'a bucket key in it': {
+          topic: function(ses){
+            ses.storeBucketKey('testuser',_CREATESESSIONKEY_,'test','test1');
+            var req = ses._createStoreRequest('testuser',_CREATESESSIONKEY_,C.ACTION_REFRESH);
+            ses.store.refreshRecord(req,{},this.callback);
+          },
+          
+          'the session record for the user should contain it': function(data){
+            assert.isArray(data.bucketkeys['test']);
+            assert.includes(data.bucketkeys['test'],'test1'); 
+          }
+        }
+      }
+    }    
+    
+  }
+  
+})
 // .addBatch({
 //   'registering data in a session': {
 //     topic: function(){
 //       var ses = base.Thoth.Session.create({
 //         store: base.Thoth.DiskStore.create({ filename: 'test.js'}) // create a temporary file, not mess with standards
 //       });
-//       ses.start();
 //       return ses;      
 //     },
 //     
