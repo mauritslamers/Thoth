@@ -166,30 +166,30 @@ sessionTests.addBatch({
       
       'store a fetch all query with special markers': function(t){
         assert.isObject(t._queryCache['test3']);
-        assert.isObject(t._queryCache['test3']['_ALLCONDS_']);
-        assert.isObject(t._queryCache['test3']['_ALLCONDS_']['_ALLPARAMS_']);
-        assert.isArray(t._queryCache['test3']['_ALLCONDS_']['_ALLPARAMS_'].sessionKeys);
-        assert.lengthOf(t._queryCache['test3']['_ALLCONDS_']['_ALLPARAMS_'].sessionKeys,1);
-        assert.isObject(t._queryCache['test3']['_ALLCONDS_']['_ALLPARAMS_'].query);
+        assert.isObject(t._queryCache['test3']['_ALLCONDITIONS_']);
+        assert.isObject(t._queryCache['test3']['_ALLCONDITIONS_']['_ALLPARAMETERS_']);
+        assert.isArray(t._queryCache['test3']['_ALLCONDITIONS_']['_ALLPARAMETERS_'].sessionKeys);
+        assert.lengthOf(t._queryCache['test3']['_ALLCONDITIONS_']['_ALLPARAMETERS_'].sessionKeys,1);
+        assert.isObject(t._queryCache['test3']['_ALLCONDITIONS_']['_ALLPARAMETERS_'].query);
       },
       
       'create a fetch all SC.Query without conditions and parameters': function(t){
-        assert.isUndefined(t._queryCache['test3']['_ALLCONDS_']['_ALLPARAMS_'].query.conditions);
-        assert.isUndefined(t._queryCache['test3']['_ALLCONDS_']['_ALLPARAMS_'].query.parameters);        
+        assert.isUndefined(t._queryCache['test3']['_ALLCONDITIONS_']['_ALLPARAMETERS_'].query.conditions);
+        assert.isUndefined(t._queryCache['test3']['_ALLCONDITIONS_']['_ALLPARAMETERS_'].query.parameters);        
       },
       
       'store a query without a parameter object with special markers': function(t){
         assert.isObject(t._queryCache['test4']);
         assert.isObject(t._queryCache['test4']['test_id = 1']);
-        assert.isObject(t._queryCache['test4']['test_id = 1']['_ALLPARAMS_']);
-        assert.isArray(t._queryCache['test4']['test_id = 1']['_ALLPARAMS_'].sessionKeys);
-        assert.lengthOf(t._queryCache['test4']['test_id = 1']['_ALLPARAMS_'].sessionKeys,1);
-        assert.isObject(t._queryCache['test4']['test_id = 1']['_ALLPARAMS_'].query);        
+        assert.isObject(t._queryCache['test4']['test_id = 1']['_ALLPARAMETERS_']);
+        assert.isArray(t._queryCache['test4']['test_id = 1']['_ALLPARAMETERS_'].sessionKeys);
+        assert.lengthOf(t._queryCache['test4']['test_id = 1']['_ALLPARAMETERS_'].sessionKeys,1);
+        assert.isObject(t._queryCache['test4']['test_id = 1']['_ALLPARAMETERS_'].query);        
       },
       
       'create a SC.Query without a parameter object when none is given': function(t){
-        assert.equal(t._queryCache['test4']['test_id = 1']['_ALLPARAMS_'].query.conditions,'test_id = 1');
-        assert.isUndefined(t._queryCache['test4']['test_id = 1']['_ALLPARAMS_'].query.parameters);
+        assert.equal(t._queryCache['test4']['test_id = 1']['_ALLPARAMETERS_'].query.conditions,'test_id = 1');
+        assert.isUndefined(t._queryCache['test4']['test_id = 1']['_ALLPARAMETERS_'].query.parameters);
       }
     }
   }
@@ -296,7 +296,6 @@ sessionTests.addBatch({
             },
             
             'to a newer value': function(data){
-              sys.log('arguments to lastSeen: ' + sys.inspect(arguments));
               assert.isTrue(data.refreshResult.lastSeen > _CURRENTLASTSEEN_);
             }
           },
@@ -359,15 +358,150 @@ sessionTests.addBatch({
       'and storing': {
         
         'a bucket key in it': {
-          topic: function(ses){
-            ses.storeBucketKey('testuser',_CREATESESSIONKEY_,'test','test1');
-            var req = ses._createStoreRequest('testuser',_CREATESESSIONKEY_,C.ACTION_REFRESH);
-            ses.store.refreshRecord(req,{},this.callback);
+          topic: function(rec,ses){
+            ses.storeBucketKey('testuser',_CREATESESSIONKEY_,'test','test1',this.callback);
           },
           
-          'the session record for the user should contain it': function(data){
-            assert.isArray(data.bucketkeys['test']);
-            assert.includes(data.bucketkeys['test'],'test1'); 
+          'the callback should be called with the session record': function(rec){
+            assert.isObject(rec);
+            assert.equal(rec.sessionKey, _CREATESESSIONKEY_);
+            assert.isArray(rec.bucketKeys['test']);
+            assert.includes(rec.bucketKeys['test'], 'test1');
+          },
+          
+          'the session record in the store': {
+            topic: function(rec2,rec,ses){
+              var req = ses._createStoreRequest('testuser',_CREATESESSIONKEY_,C.ACTION_REFRESH);
+              ses.store.refreshRecord(req,{},this.callback);              
+            },
+          
+            'should contain the key': function(data){
+              assert.isArray(data.refreshResult.bucketKeys['test']);
+              assert.includes(data.refreshResult.bucketKeys['test'],'test1'); 
+            }
+          }
+        },
+        
+        'a set of records in it': {
+          topic: function(rec,ses){
+            // create a store request and records and store them in the session
+            var req = base.Thoth.API.StoreRequest.create({
+              bucket: 'testbucket',
+              primaryKey: 'id',
+              requestType: C.ACTION_FETCH
+            });
+            var recs = [ { id: 1, prop: 'propOne' },{ id: 2, prop: 'propTwo' } ];
+            ses.storeRecords('testuser',_CREATESESSIONKEY_,req,recs,this.callback);
+          },
+          
+          'the callback should give back the session record': function(t){
+            assert.isObject(t);
+            assert.isObject(t.bucketKeys);
+            assert.isArray(t.bucketKeys['testbucket']);
+            assert.includes(t.bucketKeys['testbucket'],1);
+            assert.includes(t.bucketKeys['testbucket'],2);            
+          },
+          
+          'the record in the store': {
+            topic: function(rec2,rec,ses){
+              var req = ses._createStoreRequest('testuser',_CREATESESSIONKEY_,C.ACTION_REFRESH);
+              ses.store.refreshRecord(req,{},this.callback);
+            },
+            
+            'should also contain the keys': function(data){
+              assert.isObject(data.refreshResult);
+              assert.isObject(data.refreshResult.bucketKeys);
+              assert.isArray(data.refreshResult.bucketKeys['testbucket']);
+              assert.includes(data.refreshResult.bucketKeys['testbucket'],1);
+              assert.includes(data.refreshResult.bucketKeys['testbucket'],2);                          
+            }
+          }
+        },
+        
+        'a fetch all query in it': {
+          topic: function(rec,ses){
+            ses.storeQuery('testuser',_CREATESESSIONKEY_,'testbucketforfetchall',null,null,this.callback);
+          },
+          
+          'the callback should give back the session record': function(t){
+            assert.isObject(t);
+            assert.isArray(t.queries);
+            assert.deepEqual(t.queries[0], { bucket: 'testbucketforfetchall', conditions: '_ALLCONDITIONS_', parameters:'_ALLPARAMETERS_'});
+          },
+          
+          'the record in the store': {
+            topic: function(rec2,rec,ses){
+              var req = ses._createStoreRequest('testuser',_CREATESESSIONKEY_,C.ACTION_REFRESH);
+              ses.store.refreshRecord(req,{},this.callback);
+            },
+            
+            'should also contain the same data': function(data){
+              assert.isObject(data.refreshResult);
+              assert.isArray(data.refreshResult.queries);
+              assert.deepEqual(data.refreshResult.queries[0], { 
+                bucket: 'testbucketforfetchall', 
+                conditions: '_ALLCONDITIONS_', 
+                parameters:'_ALLPARAMETERS_'
+              });
+            }
+          }
+        },
+        
+        'a fetch query in it with only conditions': {
+          topic: function(rec,ses){
+            ses.storeQuery('testuser',_CREATESESSIONKEY_,'testbucketforfetchconds',"id = 1",null,this.callback);
+          },
+          
+          'the callback should give back the session record': function(t){
+            assert.isObject(t);
+            assert.isArray(t.queries);
+            assert.deepEqual(t.queries[1], { bucket: 'testbucketforfetchconds', conditions: 'id = 1', parameters:'_ALLPARAMETERS_'});
+          },
+          
+          'the record in the store': {
+            topic: function(rec2,rec,ses){
+              var req = ses._createStoreRequest('testuser',_CREATESESSIONKEY_,C.ACTION_REFRESH);
+              ses.store.refreshRecord(req,{},this.callback);
+            },
+            
+            'should also contain the same data': function(data){
+              assert.isObject(data.refreshResult);
+              assert.isArray(data.refreshResult.queries);
+              assert.deepEqual(data.refreshResult.queries[1], { 
+                bucket: 'testbucketforfetchconds', 
+                conditions: 'id = 1', 
+                parameters:'_ALLPARAMETERS_'
+              });
+            }
+          }
+        },
+        
+        'a fetch query in it with both conditions and parameters': {
+          topic: function(rec,ses){
+            ses.storeQuery('testuser',_CREATESESSIONKEY_,'testbucketforfetchcondsparams','id ANY {keys}',{ keys: [1,2] },this.callback);
+          },
+          
+          'the callback should give back the session record': function(t){
+            assert.isObject(t);
+            assert.isArray(t.queries);
+            assert.deepEqual(t.queries[2], { bucket: 'testbucketforfetchcondsparams', conditions: 'id ANY {keys}', parameters:'{"keys":[1,2]}'});
+          },
+          
+          'the record in the store': {
+            topic: function(rec2,rec,ses){
+              var req = ses._createStoreRequest('testuser',_CREATESESSIONKEY_,C.ACTION_REFRESH);
+              ses.store.refreshRecord(req,{},this.callback);
+            },
+            
+            'should also contain the same data': function(data){
+              assert.isObject(data.refreshResult);
+              assert.isArray(data.refreshResult.queries);
+              assert.deepEqual(data.refreshResult.queries[2], { 
+                bucket: 'testbucketforfetchcondsparams', 
+                conditions: 'id ANY {keys}', 
+                parameters:'{"keys":[1,2]}'
+              });
+            }
           }
         }
       }
