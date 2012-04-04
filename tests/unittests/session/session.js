@@ -444,6 +444,20 @@ sessionTests.addBatch({
                 parameters:'_ALLPARAMETERS_'
               });
             }
+          },
+          
+          'the query cache': {
+            topic: function(rec2,rec,ses){
+              return ses._queryCache;
+            },
+            
+            'should have the query stored in the right place': function(t){
+              assert.isObject(t['testbucketforfetchall']);
+              assert.isObject(t['testbucketforfetchall']['_ALLCONDITIONS_']);
+              assert.isObject(t['testbucketforfetchall']['_ALLCONDITIONS_']['_ALLPARAMETERS_']);
+              assert.isArray(t['testbucketforfetchall']['_ALLCONDITIONS_']['_ALLPARAMETERS_'].sessionKeys);
+              assert.isObject(t['testbucketforfetchall']['_ALLCONDITIONS_']['_ALLPARAMETERS_'].query);
+            }
           }
         },
         
@@ -472,6 +486,20 @@ sessionTests.addBatch({
                 conditions: 'id = 1', 
                 parameters:'_ALLPARAMETERS_'
               });
+            }
+          },
+          
+          'the query cache': {
+            topic: function(rec2,rec,ses){
+              return ses._queryCache;
+            },
+            
+            'should have stored the query in the right spot': function(t){
+              assert.isObject(t['testbucketforfetchconds']);
+              assert.isObject(t['testbucketforfetchconds']['id = 1']);
+              assert.isObject(t['testbucketforfetchconds']['id = 1']['_ALLPARAMETERS_']);
+              assert.isArray(t['testbucketforfetchconds']['id = 1']['_ALLPARAMETERS_'].sessionKeys);
+              assert.isObject(t['testbucketforfetchconds']['id = 1']['_ALLPARAMETERS_'].query);
             }
           }
         },
@@ -502,7 +530,21 @@ sessionTests.addBatch({
                 parameters:'{"keys":[1,2]}'
               });
             }
-          } // the record in the store
+          }, // the record in the store
+          
+          'the query cache': {
+            topic: function(rec2,rec,ses){
+              return ses._queryCache;
+            },
+            
+            'should have stored the query in the right spot': function(t){
+              assert.isObject(t['testbucketforfetchcondsparams']);
+              assert.isObject(t['testbucketforfetchcondsparams']['id ANY {keys}']);
+              assert.isObject(t['testbucketforfetchcondsparams']['id ANY {keys}']['{"keys":[1,2]}']);
+              assert.isArray(t['testbucketforfetchcondsparams']['id ANY {keys}']['{"keys":[1,2]}'].sessionKeys);
+              assert.isObject(t['testbucketforfetchcondsparams']['id ANY {keys}']['{"keys":[1,2]}'].query);
+            }
+          }
         }, // fetch query with conditions and parameters
         
         'and then testing the eligibility': {
@@ -573,7 +615,75 @@ sessionTests.addBatch({
               assert.equal(t[0].sessionKey, _CREATESESSIONKEY_);
               assert.equal(t[0].matchType, C.DISTRIBUTE_QUERY);
             }
-          }
+          },
+          
+          'by finding an existing record through a fetchconds query': {
+            topic: function(rec,ses){
+              var sr = base.Thoth.API.StoreRequest.create({
+                bucket: 'testbucketforfetchconds',
+                key: 1,
+                primaryKey: 'id',
+                record: {
+                  id: 1
+                },
+                requestType: C.ACTION_UPDATE
+              });
+              ses.findEligableUserSessions(sr,this.callback);              
+            },
+            
+            'should return a single session with query matching': function(t){
+              assert.isArray(t);
+              assert.lengthOf(t,1);
+              assert.isObject(t[0]);
+              assert.equal(t[0].user,'testuser');
+              assert.equal(t[0].sessionKey, _CREATESESSIONKEY_);
+              assert.equal(t[0].matchType, C.DISTRIBUTE_QUERY);              
+            }
+          },
+          
+          'by finding an existing record through a fetchcondsparams query': {
+            topic: function(rec,ses){
+              var sr = base.Thoth.API.StoreRequest.create({
+                bucket: 'testbucketforfetchcondsparams',
+                key: 1,
+                primaryKey: 'id',
+                record: {
+                  id: 1
+                },
+                requestType: C.ACTION_UPDATE
+              });
+              ses.findEligableUserSessions(sr,this.callback);              
+            },
+            
+            'should return a single session with query matching': function(t){
+              assert.isArray(t);
+              assert.lengthOf(t,1);
+              assert.isObject(t[0]);
+              assert.equal(t[0].user,'testuser');
+              assert.equal(t[0].sessionKey, _CREATESESSIONKEY_);
+              assert.equal(t[0].matchType, C.DISTRIBUTE_QUERY);              
+            }            
+          },
+          
+          'by finding an non-matching record through a fetchcondsparams query': {
+            topic: function(rec,ses){
+              var sr = base.Thoth.API.StoreRequest.create({
+                bucket: 'testbucketforfetchcondsparams',
+                key: 3,
+                primaryKey: 'id',
+                record: {
+                  id: 3
+                },
+                requestType: C.ACTION_UPDATE
+              });
+              ses.findEligableUserSessions(sr,this.callback);              
+            },
+            
+            'should return a single session with query matching': function(t){
+              assert.isArray(t);
+              assert.lengthOf(t,0);
+            }            
+          }          
         }
       } // and storing
     }    
