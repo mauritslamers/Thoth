@@ -48,7 +48,7 @@ sessionTests.addBatch({
       assert.isFunction(t.storeBucketKey);
       assert.isFunction(t.storeRecords);
       assert.isFunction(t.storeQuery);
-      assert.isFunction(t.storeRequest);
+      assert.isFunction(t.storeStoreRequest);
     },
     
     'should have all functions for deleting data from the session': function(t){
@@ -62,8 +62,8 @@ sessionTests.addBatch({
       assert.isFunction(t.retrieveRequestQueue);
     },
     
-    'should have the getEligableUserSessions function': function(t){
-      assert.isFunction(t.getEligableUserSessions);
+    'should have the findEligableUserSessions function': function(t){
+      assert.isFunction(t.findEligableUserSessions);
     },
     
     'should have the _storeQueryInCache function': function(t){
@@ -502,28 +502,83 @@ sessionTests.addBatch({
                 parameters:'{"keys":[1,2]}'
               });
             }
+          } // the record in the store
+        }, // fetch query with conditions and parameters
+        
+        'and then testing the eligibility': {
+          
+          'by finding an existing bucket key': {
+            topic: function(rec,ses){
+              var sr = base.Thoth.API.StoreRequest.create({
+                bucket: 'test',
+                key: 'test1',
+                primaryKey: 'id',
+                record: {
+                  id: 'test1'
+                },
+                requestType: C.ACTION_UPDATE
+              });
+              ses.findEligableUserSessions(sr,this.callback);
+            },
+            
+            'should find one match on bucketkey': function(t){
+              assert.isArray(t);
+              assert.lengthOf(t,1);
+              assert.isObject(t[0]);
+              assert.equal(t[0].user,'testuser');
+              assert.equal(t[0].sessionKey,_CREATESESSIONKEY_);
+              assert.equal(t[0].matchType, C.DISTRIBUTE_BUCKETKEY);
+            }            
+          },
+          
+          'by finding an non-existing bucket key': {
+            topic: function(rec,ses){
+              var sr = base.Thoth.API.StoreRequest.create({
+                bucket: 'test',
+                key: 'test2',
+                primaryKey: 'id',
+                record: {
+                  id: 'test2'
+                },
+                requestType: C.ACTION_UPDATE
+              });
+              ses.findEligableUserSessions(sr,this.callback);              
+            },
+            
+            'should return an empty array': function(t){
+              assert.isArray(t);
+              assert.lengthOf(t,0);
+            }
+          },
+          
+          'by finding an existing record through a fetch all query': {
+            topic: function(rec,ses){
+              var sr = base.Thoth.API.StoreRequest.create({
+                bucket: 'testbucketforfetchall',
+                key: 'test2',
+                primaryKey: 'id',
+                record: {
+                  id: 'test2'
+                },
+                requestType: C.ACTION_UPDATE
+              });
+              ses.findEligableUserSessions(sr,this.callback);              
+            },
+            
+            'should return a single session with query matching': function(t){
+              assert.isArray(t);
+              assert.lengthOf(t,1);
+              assert.isObject(t[0]);
+              assert.equal(t[0].user,'testuser');
+              assert.equal(t[0].sessionKey, _CREATESESSIONKEY_);
+              assert.equal(t[0].matchType, C.DISTRIBUTE_QUERY);
+            }
           }
         }
-      }
+      } // and storing
     }    
     
   }
   
 })
-// .addBatch({
-//   'registering data in a session': {
-//     topic: function(){
-//       var ses = base.Thoth.Session.create({
-//         store: base.Thoth.DiskStore.create({ filename: 'test.js'}) // create a temporary file, not mess with standards
-//       });
-//       return ses;      
-//     },
-//     
-//     'should': {
-//       topic: function(ses){
-//         
-//       }
-//     }
-//   }
-// })
 .run();
