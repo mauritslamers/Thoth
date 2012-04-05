@@ -687,8 +687,6 @@ sessionTests.addBatch({
         }
       } // and storing
     }    
-    
   }
-  
 })
 .run();
