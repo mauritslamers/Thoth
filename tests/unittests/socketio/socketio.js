@@ -161,6 +161,157 @@ socketioTests.addBatch({
           assert.isString(t.data.sessionKey);
           assert.equal(t.data.user,'testuser');
           assert.equal(t.data.sessionKey,'testSessionKey');
+        },
+        
+        'should set on the client': {
+          topic: function(evt,authwr,socket){
+            return socket.__TESTCLIENT;
+          },
+          
+          'the userdata': function(t){
+            assert.equal(t.user,'testuser');
+            assert.equal(t.userData.user, 'testuser');
+            assert.equal(t.userData.role, 'testrole');
+            assert.equal(t.userData.sessionKey, 'testSessionKey');
+          },
+          
+          'the session check timers': function(t){
+            assert.isFunction(t.sessionChecker);
+            assert.isObject(t.sessionCheckTimer);
+            assert.equal(t.sessionCheckTimer.action, 'sessionChecker');
+            assert.strictEqual(t.sessionCheckTimer.target,t);
+          }
+        }
+      }
+    }
+  }
+})
+.addBatch({
+  'reauthWrapper': {
+    topic: function(){
+      var s = base.Thoth.SocketIO.create();
+      s.__TESTCLIENT = {
+        handshake: {}
+      };
+      return s;
+    },
+    
+    'should': {
+      topic: function(socket){
+        return socket._reauthWrapper(socket.__TESTCLIENT);
+      },
+      
+      'return a function': function(t){
+        assert.isFunction(t);
+      },
+            
+      'return a function which when executed without a sessionModule': {
+        topic: function(reauthwr,socket){
+          var me = this;
+          socket.__TESTCLIENT.emit = function(evt,data){
+            me.callback(null,{evt: evt, data: data});
+          };
+          reauthwr({ user: 'test', sessionKey: 'testSK'});
+        },
+        
+        'should call the clients emit with an authError': function(t){
+          assert.isObject(t);
+          assert.equal(t.evt,'authError');
+          assert.isObject(t.data);
+          assert.isString(t.data.errorMsg);
+        }
+      },
+      
+      'return a function which when executed with a sessionModule': {
+        topic: function(reauthwr,socket){
+          var me = this;
+          socket.__TESTCLIENT.emit = function(evt,data){
+            me.callback(null,{evt: evt, data: data});
+          };
+          socket.sessionModule = {
+            checkSession: function(userdata,callback){
+              me.callback(null,userdata);
+            }
+          };
+          reauthwr({ user: 'test', sessionKey: 'testSK'});
+        },
+        
+        'should call the sessions checkSession with the userdata': function(t){
+          assert.isObject(t);
+          assert.equal(t.user,'test');
+          assert.equal(t.sessionKey, 'testSK');
+        }
+      },
+      
+      'return a function which when executed with a sessionModule which responds with false': {
+        topic: function(reauthwr,socket){
+          var me = this;
+          socket.__TESTCLIENT.emit = function(evt,data){
+            me.callback(null,{evt: evt, data: data});
+          };
+          socket.sessionModule = {
+            checkSession: function(userdata,callback){
+              callback(null,false);
+            }
+          };
+          reauthwr({ user: 'test', sessionKey: 'testSK'});
+        },
+        
+        'should call the clients emit function with an authFailure': function(t){
+          assert.isObject(t);
+          assert.equal(t.evt,'authFailure');
+          assert.isObject(t.data);
+          assert.isString(t.data.errorMsg);
+        }
+      },
+      
+      'return a function which when executed with a sessionModule which responds with a session record': {
+        topic: function(reauthwr,socket){
+          var me = this;
+          socket.__TESTCLIENT.emit = function(evt,data){
+            me.callback(null,{evt: evt, data: data});
+          };
+          socket.sessionModule = {
+            checkSession: function(userdata,callback){
+              callback(null,{ 
+                username: userdata.user,
+                sessionKey: userdata.sessionKey,                
+                userData: {
+                  user: userdata.user,
+                  sessionKey: userdata.sessionKey,
+                  role: 'testrole'
+                }});
+            }
+          };
+          reauthwr({ user: 'test', sessionKey: 'testSK'});
+        },
+        
+        'should call the clients emit function with an authSuccess': function(t){
+          assert.isObject(t);
+          assert.equal(t.evt,'authSuccess');
+          assert.isObject(t.data);
+          assert.equal(t.data.user,'test');
+          assert.equal(t.data.sessionKey,'testSK');
+        },
+        
+        'should set on the client': {
+          topic: function(evt,authwr,socket){
+            return socket.__TESTCLIENT;
+          },
+
+          'the userdata': function(t){
+            assert.equal(t.user,'test');
+            assert.equal(t.userData.user, 'test');
+            assert.equal(t.userData.role, 'testrole');
+            assert.equal(t.userData.sessionKey, 'testSK');
+          },
+
+          'the session check timers': function(t){
+            assert.isFunction(t.sessionChecker);
+            assert.isObject(t.sessionCheckTimer);
+            assert.equal(t.sessionCheckTimer.action, 'sessionChecker');
+            assert.strictEqual(t.sessionCheckTimer.target,t);
+          }
         }
       }
     }
