@@ -317,5 +317,89 @@ socketioTests.addBatch({
     }
   }
 })
-
+.addBatch({
+  'When': {
+    topic: function(){
+      var s = base.Thoth.SocketIO.create();
+      s.__TESTCLIENT = {
+        handshake: {}
+      };
+      return s;
+    },
+    
+    'a handler is registered': {
+      topic: function(socket){
+        var me = this;
+        var f = function(){
+          return;
+        };
+        f.isTestFunction = true;
+        return socket.on('fetch',f);
+      },
+      
+      'the registering function should return true': function(t){
+        assert.isTrue(t);
+      },
+      
+      'the handler itself': {
+        topic: function(ret,socket){
+          return socket;
+        },
+        
+        'should be in socket._handlers': function(t){
+          assert.isObject(t._handlers);
+          assert.isFunction(t._handlers['fetch']);
+          assert.isTrue(t._handlers['fetch'].isTestFunction);
+        } 
+      }
+    }
+  }
+})
+.addBatch({
+  'When': {
+    topic: function(){
+      var s = base.Thoth.SocketIO.create();
+      s.__TESTCLIENT = {
+        handshake: {}
+      };
+      return s;
+    },
+    
+    'registering a handler which is then attached to a client': {
+      topic: function(socket){
+        var me = this;
+        socket.ThothServer = {
+          forceAuthentication: false
+        };
+        socket.__TESTCLIENT = {
+          handshake: {},
+          _cb: me.callback,
+          _handlers: null,
+          removeAllListeners: function(){
+            delete this._handlers;
+          },
+          on: function(event,handler){
+            if(!this._handlers) this._handlers = {};
+            if(SC.typeOf(handler) === 'function') this._handlers[event] = handler;
+          }
+        };
+        socket.on('fetch', function(apireq,userdata,callback){
+          socket.__TESTCLIENT._cb(apireq,userdata,callback);
+        });
+        socket._attachHandlers(socket.__TESTCLIENT);
+        socket.__TESTCLIENT._handlers['fetch']({ bucket: 'testbucket'});
+      },
+      
+      'should cause the handlerCaller to call the callback with the proper data': function(apireq,userdata,callback){
+        sys.log('arguments: ' + sys.inspect(arguments));
+        assert.isObject(apireq);
+        assert.isTrue(apireq.instanceOf(base.Thoth.API.APIRequest));
+        sys.log('apireq: ' + sys.inspect(apireq));
+        assert.isObject(userdata);
+        assert.isUndefined(callback); // when using Socket.IO no callback is being used...
+      }
+      
+    }
+  }
+})
 .run();
