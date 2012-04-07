@@ -6,6 +6,8 @@ var C = base.Thoth.Constants;
 var sys = require('util');
 var _CREATESESSIONKEY_;
 var _CURRENTLASTSEEN_;
+var _REC_;
+var _SES_;
 
 sessionTests.addBatch({
   
@@ -667,6 +669,8 @@ sessionTests.addBatch({
           
           'by finding an non-matching record through a fetchcondsparams query': {
             topic: function(rec,ses){
+              _REC_ = rec;
+              _SES_ = ses;
               var sr = base.Thoth.API.StoreRequest.create({
                 bucket: 'testbucketforfetchcondsparams',
                 key: 3,
@@ -683,10 +687,31 @@ sessionTests.addBatch({
               assert.isArray(t);
               assert.lengthOf(t,0);
             }            
-          }          
+          }         
         }
       } // and storing
     }    
+  }
+})
+.addBatch({
+  'and putting the lastSeen property way beyond the limit and then purge': {
+    topic: function(){
+      var rec = _REC_;
+      var ses = _SES_;
+      var me = this;
+      var timeout = ses.get('_timeoutInMs') * 2;
+      rec.lastSeen -= timeout;
+      ses._updateSessionRecord('testuser',_CREATESESSIONKEY_,rec, function(err,sesrec){
+        ses._purgeOldSessions(function(){
+          //not checksession, because that also purges
+          ses._sessionRecordFor('testuser',_CREATESESSIONKEY_,me.callback);
+        });
+      }); 
+    },
+    
+    'should have destroyed the session': function(t){
+      assert.isNull(t);
+    }
   }
 })
 .run();
