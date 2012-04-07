@@ -358,7 +358,9 @@ socketioTests.addBatch({
 .addBatch({
   'When': {
     topic: function(){
-      var s = base.Thoth.SocketIO.create();
+      var s = base.Thoth.SocketIO.create({
+        _attachSessionCheckTimer: false
+      });
       s.__TESTCLIENT = {
         handshake: {}
       };
@@ -369,21 +371,38 @@ socketioTests.addBatch({
       topic: function(socket){
         var me = this;
         socket.ThothServer = {
-          forceAuthentication: false
+          forceAuthentication: true
+        };
+        socket.sessionModule = {
+          checkSession: function(userdata,callback){
+            callback(null,{ 
+              username: userdata.user, 
+              sessionKey: userdata.sessionKey, 
+              role: 'testuser',
+              userData: userdata
+            });
+          }
         };
         socket.__TESTCLIENT = {
           handshake: {},
+          userData: { user: 'testuser', sessionKey: 'testSK'}, // fake authentication
           _cb: me.callback,
           _handlers: null,
           removeAllListeners: function(){
             delete this._handlers;
           },
           on: function(event,handler){
+            //sys.log('client on: attaching handler for event ' + event);
             if(!this._handlers) this._handlers = {};
             if(SC.typeOf(handler) === 'function') this._handlers[event] = handler;
+          },
+          emit: function(event,data){
+            sys.log('emit called with event: ' + event + ' and data: ' + sys.inspect(data));
+            me.callback(new Error('emit called'));
           }
         };
         socket.on('fetch', function(apireq,userdata,callback){
+          //sys.log('socket fetch handler...');
           socket.__TESTCLIENT._cb(apireq,userdata,callback);
         });
         socket._attachHandlers(socket.__TESTCLIENT);
@@ -395,6 +414,7 @@ socketioTests.addBatch({
         assert.isObject(apireq);
         assert.isTrue(apireq.instanceOf(base.Thoth.API.APIRequest));
         sys.log('apireq: ' + sys.inspect(apireq));
+        sys.log('apireq.userdata ' + sys.inspect(apireq.get('userData')));
         assert.isObject(userdata);
         assert.isUndefined(callback); // when using Socket.IO no callback is being used...
       }
