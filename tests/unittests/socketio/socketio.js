@@ -398,6 +398,7 @@ socketioTests.addBatch({
           },
           emit: function(event,data){
             sys.log('emit called with event: ' + event + ' and data: ' + sys.inspect(data));
+            sys.log('if you see this, something is wrong...');
             me.callback(new Error('emit called'));
           }
         };
@@ -410,7 +411,6 @@ socketioTests.addBatch({
       },
       
       'should cause the handlerCaller to call the callback with the proper data': function(apireq,userdata,callback){
-        sys.log('arguments: ' + sys.inspect(arguments));
         assert.isObject(apireq);
         assert.isTrue(apireq.instanceOf(base.Thoth.API.APIRequest));
         sys.log('apireq: ' + sys.inspect(apireq));
@@ -418,7 +418,6 @@ socketioTests.addBatch({
         assert.isObject(userdata);
         assert.isUndefined(callback); // when using Socket.IO no callback is being used...
       }
-      
     }
   }
 })
