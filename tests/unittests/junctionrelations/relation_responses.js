@@ -5,6 +5,7 @@ var C = Thoth.Constants;
 var junctionrelationstest = testbase.vows.describe("junction relations relation tests");
 var createRequest = require('./test_data').createRequest;
 var FakeStore = require('./fake_store').FakeStore;
+var sys = require('util');
 
 var stores = [];
 
@@ -78,7 +79,7 @@ junctionrelationstest
 // })
 .addBatch({
   'fetchRelation given a non-direct relation' : {
-    'which is toOne': {      
+    'which is toOne': {     
       'should not call junctionKeyName': {
         topic: function(){
           var store = getStoreWith(this.callback);
@@ -353,8 +354,8 @@ junctionrelationstest
 })
 .addBatch({
   'fetchRelation responses': {
-    'to an indirect relation': {
-        'which is toOne': {
+    'to an indirect relation': { //fetchRelation responses
+        'which is toOne': { // fetchRelation responses to an indirect relation
             'and having isChildRecord true': {
               'should return a single record': { 
                 // when the relation is in the junction table and the data is in the relation table
@@ -617,7 +618,7 @@ junctionrelationstest
         }
       },
       
-    'to a direct relation': {
+    'to a direct relation': { //fetchRelation responses
       'which is toOne': {
         'having isChildRecord true': {
           'and isMaster is true': {
@@ -929,36 +930,374 @@ junctionrelationstest
     }
   }
 })
+// Create relation
+// if isMaster is false, create should create
+// test order:
+// - first all junction requests: (isDirectRelation === false)
+//   - with toOne 
+//     - with isChildRecord true: 
+//        create the opposite record from the childrecords data if no id is given
+//        create a record in the junction table, put the id on the childrecord data and return
+//     - with isChildRecord false
+//        create a record in the junction table with the main pk and the opposite pk
+//   - with toMany
+//     - with isChildRecord true
+//        create the opposite records if they do not already exist, create the records in the junction
+//        tables and return
+//     - with isChildRecord false
+//        create the records in the junction table with the main pk and the opposite pks
+// - then all direct requests: (isDirectRelation === true)
+//   - with toOne
+//     - with isChildRecord true
+//        if the opposite record exist, do nothing. else create the opposite record and give back the data with an id?
+//     - with isChildRecord false
+//        do nothing, the user is responsible for creating the opposite record
+//   - with toMany
+//     - with isChildRecord true
+//        if the opposite records exist, do nothing, else perhaps create the opposite records and give back the data with ids?
+//     - with isChildRecord false
+//        do nothing, the user is responsible
+.addBatch({
+  'createRelation': {
+    'given an indirect relation': {
+      
+      'which has isMaster to false': {
+        topic: function(){
+          var store = getStoreWith();
+          var req = createRequest();
+          req.record = {
+            prop: 'test',
+            exam: {
+              someval: 'testval'
+            }
+          };
+          var sr = makeStoreReq(req,C.ACTION_CREATE);
+          sr.relations[0].isMaster = false;
+          return store.createRelation(sr,sr.record,sr.relations[0]);
+        },
+        
+        'should return false': function(t){
+          assert.isFalse(t);
+        }
+      },
+      'which is toOne': {
+        'and has isChildRecord true': {
+          'should try to create the record': { 
+            topic: function(){ 
+              // create a store, perform the request and check whether createDBRecord is called
+              var store = getStoreWith(this.callback);
+              var req = createRequest();
+              //req.key = 1;
+              req.record = {
+                 exam: {
+                    date: 'exam_date'
+                 }
+              };
+              var sr = makeStoreReq(req,C.ACTION_CREATE);
+              sr.relations[0].propertyName = 'exam';
+				      sr.relations[0].isChildRecord = true;
+							sr.relations[0].isDirectRelation = false;
+							sr.relations[0].isMaster = true;
+              store.createRelation(sr,sr.record,sr.relations[0]);
+            },
+      
+            'if the id is not given': function(t){
+               assert.isObject(t);
+               assert.equal(t.bucket,'exam');
+               assert.equal(t.record.date,'exam_date');
+            },
+            
+            'and return the id': {
+              topic: function(){
+                // fake the store requests to create a relation, give back an id for the created record 
+                // and then check whether the callback to the store contains the id
+                var store = getStoreWith();
+                var req = createRequest();
+                //req.key = 1;
+                req.record = {
+                   exam: {
+                      date: 'exam_date'
+                   }
+                };
+                var sr = makeStoreReq(req,C.ACTION_CREATE);
+                sr.relations[0].propertyName = 'exam';
+		            sr.relations[0].propertyName = 'exam';
+					      sr.relations[0].isChildRecord = true;
+								sr.relations[0].isDirectRelation = false;
+								sr.relations[0].isMaster = true;
+
+                store.createDBRecord = function(storeReq,clientId,callback){
+                  var rec = storeReq.record;
+                  rec.id = 1;
+		  sys.log('fake createDBRecord called...');
+                  callback(null,rec);
+                };
+                store.createRelation(sr,sr.record,sr.relations[0],this.callback);
+                //return true;
+              },
+              
+              'as part of the child record': function(t){
+                assert.isObject(t);
+                sys.log('arguments is: ' + sys.inspect(arguments));
+              }
+            }
+          },
+          
+          'should not try to create the record': { 
+            topic: function(){ 
+              // create a store, perform the request and expect createDBRecord not to be called
+              // but the callback on a different spot...
+              return true;
+            },
+            'if the id is not given': function(t){
+              
+            }
+          },
+          
+          'should update the relation table': {
+            topic: function(){
+              // create a store, put in a request with an id, and check whether:
+              // - retrieveDBRecord is called for attempt to check whether the relation record exists
+              // - createDBRecord to be called to create the relation record
+              return true;
+            },
+            
+            'to contain the new relation': function(t){
+              
+            }
+          }
+          
+        },
+        
+        'and has isChildRecord false': {
+          
+        }
+        
+      },
+      
+      'which is toMany': {
+        'and has isChildRecord true': {
+          
+        },
+        
+        'and has isChildRecord false': {
+          
+        }        
+      }
+    }
+    
+  },
+  
+  'createRelation given a direct relation': {
+     topic: function(){
+          var store = getStoreWith();
+          var req = createRequest();
+          req.record = {
+            prop: 'test',
+            exam: {
+              someval: 'testval'
+            }
+          };
+          var sr = makeStoreReq(req,C.ACTION_CREATE);
+          sr.relations[0].isMaster = true;
+          sr.relations[0].isDirectRelation = true;
+          return store.createRelation(sr,sr.record,sr.relations[0]);
+     },
+     
+     'should do nothing by default': function(t){
+       assert.isFalse(t);
+     }
+   }
+})
+// Update relations
+// test order:
+// - first all junction requests: (isDirectRelation === false)
+//   - with toOne
+//     - with isChildRecord true
+//        take the child record data, and id, create one if it didn't exist already
+//        delete the child record data if it was originally there
+//        update the relation table
+//     - with isChildRecord false
+//        update the relation table
+//   - with toMany
+//     - with isChildRecord true
+//        take the child record data and update the records, create the new ones or destroy the deleted ones
+//        update the relation table
+//     - with isChildRecord false
+// - then all direct requests: (isDirectRelation === true)
+//   - with toOne
+//     - with isChildRecord true
+//     - with isChildRecord false
+//   - with toMany
+//     - with isChildRecord true
+//     - with isChildRecord false
+
 // .addBatch({
-//   'createRelation responses': {
+//   'updateRelation': {
+//     'given an indirect relation': {
+//       
+//       'which has isMaster to false': {
+//         topic: function(){
+//           var store = getStoreWith();
+//           var req = createRequest();
+//           req.key = 1;
+//           req.record = {
+//             id: 1,
+//             exam: {
+//               date: 'exam_date'
+//             }
+//           };
+//           var sr = makeStoreReq(createRequest(),C.ACTION_UPDATE);
+//           sr.relations[0].isMaster = false;
+//           return store.createRelation(sr);
+//         },
+//         
+//         'should return false': function(t){
+//           assert.isFalse(t);
+//         }
+//       },
+//       
+//       'which is toOne': {
+//         
+//         'and has isChildRecord true': {
+//           
+//         },
+//         
+//         'and has isChildRecord false': {
+//           
+//         }
+//         
+//       },
+//       
+//       'which is toMany': {
+//         'and has isChildRecord true': {
+//           
+//         },
+//         
+//         'and has isChildRecord false': {
+//           
+//         }        
+//       }
+//     },
 //     
+//     'given a direct relation': {
+//       'which is toOne': {
+//         
+//         'and has isChildRecord true': {
+//           
+//         },
+//         
+//         'and has isChildRecord false': {
+//           
+//         }
+//         
+//       },
+//       
+//       'which is toMany': {
+//         'and has isChildRecord true': {
+//           
+//         },
+//         
+//         'and has isChildRecord false': {
+//           
+//         }        
+//       }
+//     }
+//   }
+// })
+// .addBatch({
+//   'destroyRelation': {
+//     'given an indirect relation': {
+//       
+//       'which has isMaster to false': {
+//         topic: function(){
+//           var store = getStoreWith();
+//           var req = createRequest();
+//           req.key = 1;
+//           req.record = {
+//             id: 1,
+//             prop: 'someval'
+//           };
+//           var sr = makeStoreReq(req,C.ACTION_DELETE);
+//           sr.relations[0].isMaster = false;
+//           return store.createRelation(sr);
+//         },
+//         
+//         'should return false': function(t){
+//           assert.isFalse(t);
+//         }
+//       },
+//       'which is toOne': {
+//         
+//         'and has isChildRecord true': {
+//           
+//         },
+//         
+//         'and has isChildRecord false': {
+//           
+//         }
+//         
+//       },
+//       
+//       'which is toMany': {
+//         'and has isChildRecord true': {
+//           
+//         },
+//         
+//         'and has isChildRecord false': {
+//           
+//         }        
+//       }
+//     },
+//     
+//     'given a direct relation': {
+//       'which is toOne': {
+//         
+//         'and has isChildRecord true': {
+//           
+//         },
+//         
+//         'and has isChildRecord false': {
+//           
+//         }
+//         
+//       },
+//       
+//       'which is toMany': {
+//         'and has isChildRecord true': {
+//           
+//         },
+//         
+//         'and has isChildRecord false': {
+//           
+//         }        
+//       }
+//     }
 //   }
 // })
 
 
 
 
-
-
 .run();    
     
-    /*
-    test order:
-    - first all junction requests: (isDirectRelation === false)
-      - with toOne
-        - with isChildRecord true
-        - with isChildRecord false
-      - with toMany
-        - with isChildRecord true
-        - with isChildRecord false
-    - then all direct requests: (isDirectRelation === true)
-      - with toOne
-        - with isChildRecord true
-        - with isChildRecord false
-      - with toMany
-        - with isChildRecord true
-        - with isChildRecord false
-    */
+    
+    // test order:
+    // - first all junction requests: (isDirectRelation === false)
+    //   - with toOne
+    //     - with isChildRecord true
+    //     - with isChildRecord false
+    //   - with toMany
+    //     - with isChildRecord true
+    //     - with isChildRecord false
+    // - then all direct requests: (isDirectRelation === true)
+    //   - with toOne
+    //     - with isChildRecord true
+    //     - with isChildRecord false
+    //   - with toMany
+    //     - with isChildRecord true
+    //     - with isChildRecord false
+    
     
     // 
     // 
