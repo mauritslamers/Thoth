@@ -1020,7 +1020,6 @@ junctionrelationstest
                    }
                 };
                 var sr = makeStoreReq(req,C.ACTION_CREATE);
-                sr.relations[0].propertyName = 'exam';
 		            sr.relations[0].propertyName = 'exam';
 					      sr.relations[0].isChildRecord = true;
 								sr.relations[0].isDirectRelation = false;
@@ -1029,16 +1028,16 @@ junctionrelationstest
                 store.createDBRecord = function(storeReq,clientId,callback){
                   var rec = storeReq.record;
                   rec.id = 1;
-		  sys.log('fake createDBRecord called...');
+									sys.log('fake createDBRecord called...');
                   callback(null,rec);
                 };
-                store.createRelation(sr,sr.record,sr.relations[0],this.callback);
+                store.createRelation(sr,sr.record,sr.relations[0],{},this.callback);
                 //return true;
               },
               
               'as part of the child record': function(t){
                 assert.isObject(t);
-                sys.log('arguments is: ' + sys.inspect(arguments));
+								assert.equal(t.id,1);
               }
             }
           },
@@ -1047,10 +1046,26 @@ junctionrelationstest
             topic: function(){ 
               // create a store, perform the request and expect createDBRecord not to be called
               // but the callback on a different spot...
-              return true;
+							var store = getStoreWith();
+							store.createDBRecord = function(sr,ud,cb){
+								throw(new Error('this should NOT be called'));
+							};
+							var req = createRequest();
+							req.key = 1;
+							req.record = {
+								exam: {
+												date: 'exam_date'
+											}
+							};
+							var sr = makeStoreReq(req,C.ACTION_CREATE);
+							sr.relations[0].propertyName = 'exam';
+							sr.relations[0].isChildRecord = true;
+							sr.relations[0].isDirectRelation = false;
+							sr.relations[0].isMaster = true;
+						  store.createRelation(sr,sr.record,sr.relations[0],{},this.callback);
             },
-            'if the id is not given': function(t){
-              
+            'if the id is given': function(t){
+              assert.isObject(t); 
             }
           },
           
@@ -1058,6 +1073,7 @@ junctionrelationstest
             topic: function(){
               // create a store, put in a request with an id, and check whether:
               // - retrieveDBRecord is called for attempt to check whether the relation record exists
+							//   (only when key is given)
               // - createDBRecord to be called to create the relation record
               return true;
             },
