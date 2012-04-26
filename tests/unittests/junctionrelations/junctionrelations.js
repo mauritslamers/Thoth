@@ -2,7 +2,7 @@ var testbase = require('../../testbase');
 var assert = testbase.assert;
 var Thoth = testbase.Thoth;
 var junctionrelationstest = testbase.vows.describe("junction relations tests");
-
+var sys = require('util');
 var FakeStore = require('./fake_store').FakeStore;
 
 junctionrelationstest.addBatch({
@@ -86,7 +86,52 @@ junctionrelationstest.addBatch({
     }
   }
   
-})
+}).addBatch({
+	'_fetchJunctionRecords': {
+	// test whether the double query works, mainPks ANY {keys} AND relkeys ANY {relkeys}
+		topic: function(){
+			var store = FakeStore.create();
+			store.fetchDBRecords = function(sr,ud,callback){
+				//return a set of records which is not filtered 
+				callback(null,[
+					{ model_id: 1, relation_key: 1 },
+					{ model_id: 1, relation_key: 2 },
+					{ model_id: 1, relation_key: 3 },
+					{ model_id: 1, relation_key: 4 },
+					{ model_id: 2, relation_key: 1 },
+					{ model_id: 2, relation_key: 2 },
+					{ model_id: 2, relation_key: 3 },
+					{ model_id: 2, relation_key: 4 },
+					{ model_id: 3, relation_key: 1 },
+					{ model_id: 3, relation_key: 2 },
+					{ model_id: 3, relation_key: 3 },
+					{ model_id: 3, relation_key: 4 },
+					{ model_id: 4, relation_key: 1 },
+					{ model_id: 4, relation_key: 2 },
+					{ model_id: 4, relation_key: 3 },
+					{ model_id: 4, relation_key: 4 } 
+				]);
+			};
+			// create a _fetchJunctionRecords request with keys for both main and relation
+			store._fetchJunctionRecords([1,2],[3,4],{ 
+				modelBucket: 'model',
+				relationBucket: 'relation',
+				junctionBucket: 'model_relation',
+				modelRelationKey: 'model_id',
+				relationRelationKey: 'relation_key'
+			},this.callback);
+		},
 
-
-.run();
+		'should filter junction table records': function(t){
+		// expect only records fitting the criteria
+			assert.isArray(t);
+			assert.lengthOf(t,4);
+			assert.deepEqual(t, [
+				{ model_id: 1, relation_key: 3 },
+				{ model_id: 1, relation_key: 4 },
+				{ model_id: 2, relation_key: 3 },
+				{ model_id: 2, relation_key: 4 }
+			]);
+		}
+	}
+}).run();
