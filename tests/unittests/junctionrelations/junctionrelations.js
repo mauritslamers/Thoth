@@ -112,26 +112,124 @@ junctionrelationstest.addBatch({
 					{ model_id: 4, relation_key: 4 } 
 				]);
 			};
-			// create a _fetchJunctionRecords request with keys for both main and relation
-			store._fetchJunctionRecords([1,2],[3,4],{ 
-				modelBucket: 'model',
-				relationBucket: 'relation',
-				junctionBucket: 'model_relation',
-				modelRelationKey: 'model_id',
-				relationRelationKey: 'relation_key'
-			},this.callback);
+			return store;
 		},
 
-		'should filter junction table records': function(t){
-		// expect only records fitting the criteria
-			assert.isArray(t);
-			assert.lengthOf(t,4);
-			assert.deepEqual(t, [
-				{ model_id: 1, relation_key: 3 },
-				{ model_id: 1, relation_key: 4 },
-				{ model_id: 2, relation_key: 3 },
-				{ model_id: 2, relation_key: 4 }
-			]);
+		'should filter only mainKeys': {
+			topic: function(store){
+				// create a _fetchJunctionRecords request with keys for both main and relation
+				store._fetchJunctionRecords([1],undefined,{ 
+					modelBucket: 'model',
+					relationBucket: 'relation',
+					junctionBucket: 'model_relation',
+					modelRelationKey: 'model_id',
+					relationRelationKey: 'relation_key'
+				},this.callback);
+			},
+
+			'when only model keys are given': function(t){
+				// expect only records fitting the criteria
+				assert.isArray(t);
+				assert.lengthOf(t,4);
+				assert.deepEqual(t, [
+					{ model_id: 1, relation_key: 1 },
+					{ model_id: 1, relation_key: 2 },
+					{ model_id: 1, relation_key: 3 },
+					{ model_id: 1, relation_key: 4 }
+				]);
+			}
+			
+		},
+
+		'should filter only relationKeys': {
+			topic: function(store){
+				// create a _fetchJunctionRecords request with keys for both main and relation
+				store._fetchJunctionRecords(undefined,[3],{ 
+					modelBucket: 'model',
+					relationBucket: 'relation',
+					junctionBucket: 'model_relation',
+					modelRelationKey: 'model_id',
+					relationRelationKey: 'relation_key'
+				},this.callback);
+			},
+
+			'when both model and relationkeys are given': function(t){
+				// expect only records fitting the criteria
+				assert.isArray(t);
+				assert.lengthOf(t,4);
+				assert.deepEqual(t, [
+					{ model_id: 1, relation_key: 3 },
+					{ model_id: 2, relation_key: 3 },
+					{ model_id: 3, relation_key: 3 },
+					{ model_id: 4, relation_key: 3 }
+				]);
+			}
+
+		},
+
+		'should return all': {
+			topic: function(store){
+				// create a _fetchJunctionRecords request with keys for both main and relation
+				store._fetchJunctionRecords(undefined,undefined,{ 
+					modelBucket: 'model',
+					relationBucket: 'relation',
+					junctionBucket: 'model_relation',
+					modelRelationKey: 'model_id',
+					relationRelationKey: 'relation_key'
+				},this.callback);
+			},
+
+			'wheh no model and relationkeys are given': function(t){
+				// expect only records fitting the criteria
+				assert.isArray(t);
+				assert.lengthOf(t,16);
+				assert.deepEqual(t, [
+					{ model_id: 1, relation_key: 1 },
+					{ model_id: 1, relation_key: 2 },
+					{ model_id: 1, relation_key: 3 },
+					{ model_id: 1, relation_key: 4 },
+					{ model_id: 2, relation_key: 1 },
+					{ model_id: 2, relation_key: 2 },
+					{ model_id: 2, relation_key: 3 },
+					{ model_id: 2, relation_key: 4 },
+					{ model_id: 3, relation_key: 1 },
+					{ model_id: 3, relation_key: 2 },
+					{ model_id: 3, relation_key: 3 },
+					{ model_id: 3, relation_key: 4 },
+					{ model_id: 4, relation_key: 1 },
+					{ model_id: 4, relation_key: 2 },
+					{ model_id: 4, relation_key: 3 },
+					{ model_id: 4, relation_key: 4 } 
+				]);
+			}
+	
+		},
+
+		'should return only the intersection': {
+			topic: function(store){
+				// create a _fetchJunctionRecords request with keys for both main and relation
+				store._fetchJunctionRecords([1,2],[3,4],{ 
+					modelBucket: 'model',
+					relationBucket: 'relation',
+					junctionBucket: 'model_relation',
+					modelRelationKey: 'model_id',
+					relationRelationKey: 'relation_key'
+				},this.callback);
+			},
+
+			'when both model and relationkeys are given': function(t){
+				// expect only records fitting the criteria
+				assert.isArray(t);
+				assert.lengthOf(t,4);
+				assert.deepEqual(t, [
+					{ model_id: 1, relation_key: 3 },
+					{ model_id: 1, relation_key: 4 },
+					{ model_id: 2, relation_key: 3 },
+					{ model_id: 2, relation_key: 4 }
+				]);
+			}
+		
 		}
+
 	}
 }).run();
